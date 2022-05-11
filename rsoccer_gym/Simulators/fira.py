@@ -71,9 +71,8 @@ class Fira(RSim):
             rbt_motor_max_rpm=1000.0,
         )
 
-    def stop(self):
+    def __del__(self):
         self.p_fira.terminate()
-        pass
 
     def reset(self, frame: FrameVSSPB):
         placement_pos = self._placement_dict_from_frame(frame)

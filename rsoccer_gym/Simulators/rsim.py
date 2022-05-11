@@ -39,7 +39,7 @@ class RSim:
             placement_pos["yellow_robots_pos"],
         )
 
-    def stop(self):
+    def __del__(self):
         del self.simulator
 
     def send_commands(self, commands):

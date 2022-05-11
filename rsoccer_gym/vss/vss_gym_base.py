@@ -33,9 +33,9 @@ class VSSBaseEnv(gym.Env):
         self.time_step = time_step
         self.field_type = field_type
 
-        if simulator is 'rsim':
+        if simulator == 'rsim':
             self._init_rsim()
-        elif simulator is 'fira':
+        elif simulator == 'fira':
             self._init_fira(fira_port)
         else:
             raise ValueError  # Uknown simulator
@@ -116,7 +116,7 @@ class VSSBaseEnv(gym.Env):
         return self.view.render_frame(self.frame, return_rgb_array=mode == "rgb_array")
 
     def close(self):
-        self.sim.stop()
+        pass
 
     def _get_commands(self, action):
         '''returns a list of commands of type List[Robot] from type action_space action'''
