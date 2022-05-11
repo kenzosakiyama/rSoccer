@@ -52,7 +52,7 @@ class VSSEnv(VSSBaseEnv):
             5 minutes match time
     """
 
-    def __init__(self, time_step, simulator='rsim'):
+    def __init__(self, time_step=0.025, simulator='rsim'):
         super().__init__(field_type=0, n_robots_blue=3, n_robots_yellow=3,
                          time_step=time_step, simulator=simulator)
 
