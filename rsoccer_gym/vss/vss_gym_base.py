@@ -13,15 +13,20 @@ from rsoccer_gym.Entities import Frame, Robot
 from rsoccer_gym.Simulators import RSimVSS, Fira
 
 
-
 class VSSBaseEnv(gym.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
     }
     NORM_BOUNDS = 1.2
-    
-    def __init__(self, field_type: int,
-                 n_robots_blue: int, n_robots_yellow: int, time_step: float, simulator: str = 'rsim'):
+
+    def __init__(
+        self,
+        field_type: int,
+        n_robots_blue: int,
+        n_robots_yellow: int,
+        time_step: float,
+        simulator: str = 'rsim',
+    ):
         self.n_robots_blue = n_robots_blue
         self.n_robots_yellow = n_robots_yellow
         self.time_step = time_step
@@ -31,17 +36,18 @@ class VSSBaseEnv(gym.Env):
             self._init_rsim()
         elif simulator is 'fira':
             self._init_fira()
-        
+
         # Get field dimensions
         self.field = self.sim.get_field_params()
-        self.max_pos = max(self.field.width / 2, (self.field.length / 2) 
-                                + self.field.penalty_length)
+        self.max_pos = max(
+            self.field.width / 2, (self.field.length / 2) + self.field.penalty_length
+        )
         max_wheel_rad_s = (self.field.rbt_motor_max_rpm / 60) * 2 * np.pi
         self.max_v = max_wheel_rad_s * self.field.rbt_wheel_radius
         # 0.04 = robot radius (0.0375) + wheel thickness (0.0025)
         self.max_w = np.rad2deg(self.max_v / 0.04)
 
-        # Initiate 
+        # Initiate
         self.frame: Frame = None
         self.last_frame: Frame = None
         self.view = None
@@ -72,7 +78,7 @@ class VSSBaseEnv(gym.Env):
         self.sent_commands = None
 
         # Close render window
-        del(self.view)
+        del self.view
         self.view = None
 
         initial_pos_frame: Frame = self._get_initial_positions_frame()
@@ -85,7 +91,7 @@ class VSSBaseEnv(gym.Env):
 
     def render(self, mode='human') -> None:
         '''
-        Renders the game depending on 
+        Renders the game depending on
         ball's and players' positions.
 
         Parameters
@@ -99,13 +105,12 @@ class VSSBaseEnv(gym.Env):
         '''
         if self.view == None:
             from rsoccer_gym.Render import RCGymRender
-            self.view = RCGymRender(self.n_robots_blue,
-                                 self.n_robots_yellow,
-                                 self.field,
-                                 simulator='vss')
+
+            self.view = RCGymRender(
+                self.n_robots_blue, self.n_robots_yellow, self.field, simulator='vss'
+            )
 
         return self.view.render_frame(self.frame, return_rgb_array=mode == "rgb_array")
-        
 
     def close(self):
         self.sim.stop()
@@ -127,32 +132,22 @@ class VSSBaseEnv(gym.Env):
         raise NotImplementedError
 
     def norm_pos(self, pos):
-        return np.clip(
-            pos / self.max_pos,
-            -self.NORM_BOUNDS,
-            self.NORM_BOUNDS
-        )
+        return np.clip(pos / self.max_pos, -self.NORM_BOUNDS, self.NORM_BOUNDS)
 
     def norm_v(self, v):
-        return np.clip(
-            v / self.max_v,
-            -self.NORM_BOUNDS,
-            self.NORM_BOUNDS
-        )
+        return np.clip(v / self.max_v, -self.NORM_BOUNDS, self.NORM_BOUNDS)
 
     def norm_w(self, w):
-        return np.clip(
-            w / self.max_w,
-            -self.NORM_BOUNDS,
-            self.NORM_BOUNDS
-        )
+        return np.clip(w / self.max_w, -self.NORM_BOUNDS, self.NORM_BOUNDS)
 
     def _init_rsim(self):
         # Initialize Simulator
-        self.sim = RSimVSS(field_type=self.field_type,
-                            n_robots_blue=self.n_robots_blue,
-                            n_robots_yellow=self.n_robots_yellow,
-                            time_step_ms=int(self.time_step*1000))
+        self.sim = RSimVSS(
+            field_type=self.field_type,
+            n_robots_blue=self.n_robots_blue,
+            n_robots_yellow=self.n_robots_yellow,
+            time_step_ms=int(self.time_step * 1000),
+        )
 
     def _init_fira(self):
         self.sim = Fira()
