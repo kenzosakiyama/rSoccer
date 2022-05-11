@@ -7,13 +7,15 @@ from rsoccer_gym.Simulators.rsim import RSim
 
 import rsoccer_gym.Simulators.pb_fira.packet_pb2 as packet_pb2
 from rsoccer_gym.Simulators.pb_fira.state_pb2 import *
-
+import subprocess
+import os
+import time
 
 class Fira(RSim):
     def __init__(
         self,
-        vision_ip="224.0.0.1",
-        vision_port=10002,
+        vision_ip="127.0.0.1",
+        vision_port=10010,
         cmd_ip="127.0.0.1",
         cmd_port=20011,
     ):
@@ -27,6 +29,9 @@ class Fira(RSim):
         port : int
             Port up to 1024.
         """
+        bin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin', 'FIRASim')
+        cmd = [bin_path, '-H', '-vp', f'{vision_port}']
+        self.p_fira = subprocess.Popen(cmd)
 
         self.vision_ip = vision_ip
         self.vision_port = vision_port
@@ -42,6 +47,8 @@ class Fira(RSim):
         self.vision_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 128)
         self.vision_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
         self.vision_sock.bind((self.vision_ip, self.vision_port))
+        time.sleep(4) # TODO: sleep here is to wait for fira to initialize
+        self.send_commands([])
 
     def get_field_params(self):
         return Field(
@@ -65,6 +72,7 @@ class Fira(RSim):
         )
 
     def stop(self):
+        self.p_fira.terminate()
         pass
 
     def reset(self, frame: FrameVSSPB):

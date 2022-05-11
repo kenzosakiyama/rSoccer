@@ -26,6 +26,7 @@ class VSSBaseEnv(gym.Env):
         n_robots_yellow: int,
         time_step: float,
         simulator: str = 'rsim',
+        fira_port=None,
     ):
         self.n_robots_blue = n_robots_blue
         self.n_robots_yellow = n_robots_yellow
@@ -35,9 +36,9 @@ class VSSBaseEnv(gym.Env):
         if simulator is 'rsim':
             self._init_rsim()
         elif simulator is 'fira':
-            self._init_fira()
+            self._init_fira(fira_port)
         else:
-            raise ValueError # Uknown simulator
+            raise ValueError  # Uknown simulator
 
         # Get field dimensions
         self.field = self.sim.get_field_params()
@@ -151,10 +152,10 @@ class VSSBaseEnv(gym.Env):
             time_step_ms=int(self.time_step * 1000),
         )
 
-    def _init_fira(self):
+    def _init_fira(self, fira_port):
         assert self.field_type == 0
         assert self.time_step == 0.016
         assert self.n_robots_blue == 3
         assert self.n_robots_yellow == 3
-        
-        self.sim = Fira()
+
+        self.sim = Fira(vision_port=fira_port)
