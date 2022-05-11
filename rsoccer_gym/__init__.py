@@ -22,7 +22,7 @@ register(id='VSSGk-v0',
 
 register(id='VSSFIRA-v0',
          entry_point='rsoccer_gym.vss.env_vss:VSSEnv',
-         kwargs={'simulator': 'fira'},
+         kwargs={'time_step': 0.016, 'simulator': 'fira'},
          max_episode_steps=1200
          )
 

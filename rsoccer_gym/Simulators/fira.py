@@ -42,8 +42,6 @@ class Fira(RSim):
         self.vision_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 128)
         self.vision_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
         self.vision_sock.bind((self.vision_ip, self.vision_port))
-        self.linear_speed_range = 1.15
-        self.robot_wheel_radius = 0.026
 
     def get_field_params(self):
         return Field(
@@ -62,8 +60,8 @@ class Fira(RSim):
             rbt_wheel2_angle=-1.0,
             rbt_wheel3_angle=-1.0,
             rbt_radius=0.0375,
-            rbt_wheel_radius=0.026,
-            rbt_motor_max_rpm=440.0,
+            rbt_wheel_radius=0.02,
+            rbt_motor_max_rpm=1000.0,
         )
 
     def stop(self):
@@ -121,8 +119,8 @@ class Fira(RSim):
             robot.yellowteam = cmd.yellow
 
             # convert from linear speed to angular speed
-            robot.wheel_left = cmd.v_wheel1 / self.robot_wheel_radius
-            robot.wheel_right = cmd.v_wheel2 / self.robot_wheel_radius
+            robot.wheel_left = cmd.v_wheel0
+            robot.wheel_right = cmd.v_wheel1
 
         # send commands
         data = pkt.SerializeToString()

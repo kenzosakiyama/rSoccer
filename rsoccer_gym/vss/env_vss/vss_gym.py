@@ -52,9 +52,9 @@ class VSSEnv(VSSBaseEnv):
             5 minutes match time
     """
 
-    def __init__(self, simulator='rsim'):
+    def __init__(self, time_step, simulator='rsim'):
         super().__init__(field_type=0, n_robots_blue=3, n_robots_yellow=3,
-                         time_step=0.025, simulator=simulator)
+                         time_step=time_step, simulator=simulator)
 
         self.action_space = gym.spaces.Box(low=-1, high=1,
                                            shape=(2, ), dtype=np.float32)

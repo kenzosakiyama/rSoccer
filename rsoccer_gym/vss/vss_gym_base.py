@@ -152,4 +152,9 @@ class VSSBaseEnv(gym.Env):
         )
 
     def _init_fira(self):
+        assert self.field_type == 0
+        assert self.time_step == 0.016
+        assert self.n_robots_blue == 3
+        assert self.n_robots_yellow == 3
+        
         self.sim = Fira()
