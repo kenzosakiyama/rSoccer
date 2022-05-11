@@ -5,14 +5,12 @@
 '''
 
 
-import time
-from typing import Dict, List, Optional
+from typing import List
 
 import gym
 import numpy as np
 from rsoccer_gym.Entities import Frame, Robot
-from rsoccer_gym.Simulators.rsim import RSimVSS
-from rsoccer_gym.Simulators.fira import Fira
+from rsoccer_gym.Simulators import RSimVSS, Fira
 
 
 
@@ -23,26 +21,26 @@ class VSSBaseEnv(gym.Env):
     NORM_BOUNDS = 1.2
     
     def __init__(self, field_type: int,
-                 n_robots_blue: int, n_robots_yellow: int, time_step: float):
-        # Initialize Simulator
-        self.time_step = time_step
-        self.rsim = RSimVSS(field_type=field_type,
-                                      n_robots_blue=n_robots_blue,
-                                      n_robots_yellow=n_robots_yellow,
-                                      time_step_ms=int(self.time_step*1000))
+                 n_robots_blue: int, n_robots_yellow: int, time_step: float, simulator: str = 'rsim'):
         self.n_robots_blue = n_robots_blue
         self.n_robots_yellow = n_robots_yellow
-
-        # Get field dimensions
+        self.time_step = time_step
         self.field_type = field_type
-        self.field = self.rsim.get_field_params()
+
+        if simulator is 'rsim':
+            self._init_rsim()
+        elif simulator is 'fira':
+            self._init_fira()
+        
+        # Get field dimensions
+        self.field = self.sim.get_field_params()
         self.max_pos = max(self.field.width / 2, (self.field.length / 2) 
                                 + self.field.penalty_length)
         max_wheel_rad_s = (self.field.rbt_motor_max_rpm / 60) * 2 * np.pi
         self.max_v = max_wheel_rad_s * self.field.rbt_wheel_radius
-        # 0.04 = robot radius (0.0375) + wheel thicknees (0.0025)
+        # 0.04 = robot radius (0.0375) + wheel thickness (0.0025)
         self.max_w = np.rad2deg(self.max_v / 0.04)
-        
+
         # Initiate 
         self.frame: Frame = None
         self.last_frame: Frame = None
@@ -55,12 +53,12 @@ class VSSBaseEnv(gym.Env):
         # Join agent action with environment actions
         commands: List[Robot] = self._get_commands(action)
         # Send command to simulator
-        self.rsim.send_commands(commands)
+        self.sim.send_commands(commands)
         self.sent_commands = commands
 
         # Get Frame from simulator
         self.last_frame = self.frame
-        self.frame = self.rsim.get_frame()
+        self.frame = self.sim.get_frame()
 
         # Calculate environment observation, reward and done condition
         observation = self._frame_to_observations()
@@ -78,10 +76,10 @@ class VSSBaseEnv(gym.Env):
         self.view = None
 
         initial_pos_frame: Frame = self._get_initial_positions_frame()
-        self.rsim.reset(initial_pos_frame)
+        self.sim.reset(initial_pos_frame)
 
         # Get frame from simulator
-        self.frame = self.rsim.get_frame()
+        self.frame = self.sim.get_frame()
 
         return self._frame_to_observations()
 
@@ -110,7 +108,7 @@ class VSSBaseEnv(gym.Env):
         
 
     def close(self):
-        self.rsim.stop()
+        self.sim.stop()
 
     def _get_commands(self, action):
         '''returns a list of commands of type List[Robot] from type action_space action'''
@@ -149,10 +147,12 @@ class VSSBaseEnv(gym.Env):
             self.NORM_BOUNDS
         )
 
+    def _init_rsim(self):
+        # Initialize Simulator
+        self.sim = RSimVSS(field_type=self.field_type,
+                            n_robots_blue=self.n_robots_blue,
+                            n_robots_yellow=self.n_robots_yellow,
+                            time_step_ms=int(self.time_step*1000))
 
-class VSSBaseFIRAEnv(VSSBaseEnv):
-
-    def __init__(self, field_type: int,
-                 n_robots_blue: int, n_robots_yellow: int, time_step: float):
-        super().__init__(field_type, n_robots_blue, n_robots_yellow, time_step)
-        self.rsim = Fira()
+    def _init_fira(self):
+        self.sim = Fira()
