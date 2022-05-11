@@ -93,7 +93,7 @@ class FrameSSL(Frame):
             self.robots_yellow[robot.id] = robot
 
 
-class FramePB(Frame):
+class FrameVSSPB(FrameVSS):
     def parse(self, packet):
         """It parses the state received from grSim in a common state for environment"""
 

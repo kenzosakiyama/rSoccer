@@ -2,8 +2,7 @@ import socket
 from typing import Dict, List
 
 import numpy as np
-from rsoccer_gym.Entities import Robot
-from rsoccer_gym.Entities.Frame import FramePB
+from rsoccer_gym.Entities import Robot, Field, FrameVSSPB
 from rsoccer_gym.Simulators.rsim import RSim
 
 import rsoccer_gym.Simulators.pb_fira.packet_pb2 as packet_pb2
@@ -47,19 +46,30 @@ class Fira(RSim):
         self.robot_wheel_radius = 0.026
 
     def get_field_params(self):
-        return {
-            'field_width': 1.3,
-            'field_length': 1.5,
-            'penalty_width': 0.7,
-            'penalty_length': 0.15,
-            'goal_width': 0.4,
-            'goal_depth': 0.1,
-        }
+        return Field(
+            length=1.5,
+            width=1.3,
+            penalty_length=0.15,
+            penalty_width=0.7,
+            goal_width=0.4,
+            goal_depth=0.1,
+            ball_radius=0.0215,
+            rbt_distance_center_kicker=-1.0,
+            rbt_kicker_thickness=-1.0,
+            rbt_kicker_width=-1.0,
+            rbt_wheel0_angle=90.0,
+            rbt_wheel1_angle=270.0,
+            rbt_wheel2_angle=-1.0,
+            rbt_wheel3_angle=-1.0,
+            rbt_radius=0.0375,
+            rbt_wheel_radius=0.026,
+            rbt_motor_max_rpm=440.0,
+        )
 
     def stop(self):
         pass
 
-    def reset(self, frame: FramePB):
+    def reset(self, frame: FrameVSSPB):
         placement_pos = self._placement_dict_from_frame(frame)
         pkt = packet_pb2.Packet()
 
@@ -71,7 +81,7 @@ class Fira(RSim):
         robots_pkt = pkt.replace.robots
         for i, robot in enumerate(placement_pos["blue_robots_pos"]):
             rep_rob = robots_pkt.add()
-            rep_rob.position.robot_id = i + 1
+            rep_rob.position.robot_id = i
             rep_rob.position.x = robot[0]
             rep_rob.position.y = robot[1]
             rep_rob.position.orientation = robot[2]
@@ -80,7 +90,7 @@ class Fira(RSim):
 
         for i, robot in enumerate(placement_pos["yellow_robots_pos"]):
             rep_rob = robots_pkt.add()
-            rep_rob.position.robot_id = i + 1
+            rep_rob.position.robot_id = i
             rep_rob.position.x = robot[0]
             rep_rob.position.y = robot[1]
             rep_rob.position.orientation = robot[2]
@@ -95,7 +105,7 @@ class Fira(RSim):
         """Receive package and decode."""
         data, _ = self.vision_sock.recvfrom(1024)
         decoded_data = packet_pb2.Environment().FromString(data)
-        frame = FramePB()
+        frame = FrameVSSPB()
         frame.parse(decoded_data)
         return frame
 
@@ -118,7 +128,7 @@ class Fira(RSim):
         data = pkt.SerializeToString()
         self.com_socket.sendto(data, self.com_address)
 
-    def _placement_dict_from_frame(self, frame: FramePB):
+    def _placement_dict_from_frame(self, frame: FrameVSSPB):
         replacement_pos: Dict[str, np.ndarray] = {}
 
         ball_pos: List[float] = [

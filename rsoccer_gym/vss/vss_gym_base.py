@@ -36,6 +36,8 @@ class VSSBaseEnv(gym.Env):
             self._init_rsim()
         elif simulator is 'fira':
             self._init_fira()
+        else:
+            raise ValueError # Uknown simulator
 
         # Get field dimensions
         self.field = self.sim.get_field_params()
