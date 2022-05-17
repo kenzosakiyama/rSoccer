@@ -69,7 +69,7 @@ class Fira(RSim):
             rbt_wheel3_angle=-1.0,
             rbt_radius=0.0375,
             rbt_wheel_radius=0.02,
-            rbt_motor_max_rpm=1000.0,
+            rbt_motor_max_rpm=570.0,
         )
 
     def __del__(self):
