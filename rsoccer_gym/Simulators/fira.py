@@ -49,6 +49,7 @@ class Fira(RSim):
         self.vision_sock.bind((self.vision_ip, self.vision_port))
         time.sleep(4) # TODO: sleep here is to wait for fira to initialize
         self.send_commands([])
+        self.get_frame()
 
     def get_field_params(self):
         return Field(
