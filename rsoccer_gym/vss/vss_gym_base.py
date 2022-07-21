@@ -53,7 +53,7 @@ class VSSBaseEnv(gym.Env):
     def step(self, action):
         self.steps += 1
         # Join agent action with environment actions
-        commands: List[Robot] = self._get_commands(action)
+        commands, velocities = self._get_commands(action)
         # Send command to simulator
         self.rsim.send_commands(commands)
         self.sent_commands = commands
@@ -66,7 +66,7 @@ class VSSBaseEnv(gym.Env):
         observation = self._frame_to_observations()
         reward, done = self._calculate_reward_and_done()
 
-        return observation, reward, done, {}
+        return observation, velocities, done, {}
 
     def reset(self):
         self.steps = 0

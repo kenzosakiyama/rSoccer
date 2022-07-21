@@ -4,6 +4,10 @@ register(id='VSS-v0',
          entry_point='rsoccer_gym.vss.env_vss:VSSEnv',
          max_episode_steps=1200
          )
+register(id='VSSact-v0',
+         entry_point='rsoccer_gym.vss.env_vss:VSSEnv1v1',
+         max_episode_steps=1200
+         )
 
 register(id='VSSMA-v0',
          entry_point='rsoccer_gym.vss.env_ma:VSSMAEnv',
