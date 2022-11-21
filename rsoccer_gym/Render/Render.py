@@ -25,10 +25,11 @@ class RCGymRender:
 
     def __init__(self, n_robots_blue: int,
                  n_robots_yellow: int,
+                 n_particles: int,
                  field_params: Field,
                  simulator: str = 'vss',
-                 width: int = 750,
-                 height: int = 650) -> None:
+                 width: int = int(1.5*750),
+                 height: int = int(1.5*650)) -> None:
         '''
         Creates our View object.
 
@@ -39,6 +40,9 @@ class RCGymRender:
 
         n_robots_yellow : int
             Number of yellow robots
+
+        n_particles : int
+            Number of particles from Monte Carlo Localization
 
         field_params : Field
             field parameters
@@ -53,10 +57,12 @@ class RCGymRender:
         '''
         self.n_robots_blue = n_robots_blue
         self.n_robots_yellow = n_robots_yellow
+        self.n_particles = n_particles
         self.field = field_params
         self.ball: rendering.Transform = None
         self.blue_robots: List[rendering.Transform] = []
         self.yellow_robots: List[rendering.Transform] = []
+        self.particles: List[rendering.Transform] = []
 
         # Window dimensions in pixels
         screen_width = width
@@ -94,11 +100,14 @@ class RCGymRender:
 
             # add robots
             self._add_vss_robots()
+
         if simulator == "ssl":
             # add field_lines
             self._add_field_lines_ssl()
             # add robots
             self._add_ssl_robots()
+            # add filter particles
+            self._add_particles()
         
         # add ball
         self._add_ball()
@@ -123,6 +132,13 @@ class RCGymRender:
         '''
 
         self.ball.set_translation(frame.ball.x, frame.ball.y)
+
+        for i, particle in enumerate(frame.particles.values()):
+            self.particles[i].set_translation(particle.x, particle.y)   # x and y in meters?
+            self.particles[i].set_rotation(np.deg2rad(particle.theta))  # theta in radians or degrees?
+            scale = 2.5*particle.weight + 0.5
+            if particle.weight == 0: scale = 0
+            self.particles[i].set_scale(scale, scale)
 
         for i, blue in enumerate(frame.robots_blue.values()):
             self.blue_robots[i].set_translation(blue.x, blue.y)
@@ -521,9 +537,45 @@ class RCGymRender:
         # Return the transform class to change robot position
         return robot_transform
 
+    def _add_particles(self) -> None:
+        # Add particles
+        for i in range(self.n_particles):
+            self.particles.append(
+                self._add_particle()
+            )
+
+    def _add_particle(self, likelihood = 1) -> rendering.Transform:
+        particle_radius: float = self.field.rbt_radius
+        particle_transform:rendering.Transform = rendering.Transform()
+
+        particle: rendering.Geom = rendering.make_circle(particle_radius, filled=True)
+        particle._color.vec4 = (*TAG_BLUE, 0.5)
+        particle.add_attr(particle_transform)
+
+        particle_outline: rendering.Geom = rendering.make_circle(particle_radius*1.1, filled=False)
+        particle_outline.linewidth.stroke = 1
+        particle_outline.set_color(*BLACK)
+        particle_outline.add_attr(particle_transform)
+
+        particle_heading_points = [
+            (0, 0),
+            (particle_radius, 0),
+        ]
+        particle_heading = rendering.make_polyline(particle_heading_points)
+        particle_heading.set_linewidth(3)
+        particle_heading.set_color(*BLACK)
+        particle_heading.add_attr(particle_transform)
+
+        self.screen.add_geom(particle)
+        self.screen.add_geom(particle_outline)
+        self.screen.add_geom(particle_heading)
+
+        # Return the transform class to change particle position
+        return particle_transform
+
     def _add_ball(self):
         ball_radius: float = self.field.ball_radius
-        ball_transform:rendering.Transform = rendering.Transform()
+        ball_transform: rendering.Transform = rendering.Transform()
         
         ball: rendering.Geom = rendering.make_circle(ball_radius, filled=True)
         ball.set_color(*BALL_ORANGE)

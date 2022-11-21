@@ -2,7 +2,7 @@ import numpy as np
 from typing import Dict
 from rsoccer_gym.Entities.Ball import Ball
 from rsoccer_gym.Entities.Robot import Robot
-
+from rsoccer_gym.Tracking.ParticleFilterBase import Particle
 
 class Frame:
     """Units: seconds, m, m/s, degrees, degrees/s. Reference is field center."""
@@ -12,6 +12,7 @@ class Frame:
         self.ball: Ball = Ball()
         self.robots_blue: Dict[int, Robot] = {}
         self.robots_yellow: Dict[int, Robot] = {}
+        self.particles: Dict[int, Particle] = {}
 
 
 class FrameVSS(Frame):

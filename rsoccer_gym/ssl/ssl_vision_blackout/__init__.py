@@ -1,0 +1,1 @@
+from rsoccer_gym.ssl.ssl_vision_blackout.ssl_vision_blackout import SSLVisionBlackoutEnv

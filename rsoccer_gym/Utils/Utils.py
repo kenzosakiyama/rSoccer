@@ -21,3 +21,8 @@ class OrnsteinUhlenbeckAction(object):
 
     def __repr__(self):
         return 'OrnsteinUhlenbeckActionNoise(mu={}, sigma={})'.format(self.mu, self.sigma)
+
+class Pode3D:
+    x: float
+    y: float
+    theta: float

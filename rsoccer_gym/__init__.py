@@ -69,3 +69,8 @@ register(id='SSLPassEnduranceMA-v0',
          entry_point='rsoccer_gym.ssl.ssl_hw_challenge:SSLPassEnduranceMAEnv',
          max_episode_steps=1200
          )
+
+register(id='SSLVisionBlackout-v0',
+         entry_point='rsoccer_gym.ssl.ssl_vision_blackout.ssl_vision_blackout:SSLVisionBlackoutEnv',
+         max_episode_steps=1200
+         )

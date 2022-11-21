@@ -21,7 +21,10 @@ class SSLBaseEnv(gym.Env):
     NORM_BOUNDS = 1.2
 
     def __init__(self, field_type: int,
-                 n_robots_blue: int, n_robots_yellow: int, time_step: float):
+                 n_robots_blue: int, 
+                 n_robots_yellow: int,
+                 n_particles: int,
+                 time_step: float):
         # Initialize Simulator
         self.time_step = time_step
         self.rsim = RSimSSL(field_type=field_type,
@@ -30,6 +33,7 @@ class SSLBaseEnv(gym.Env):
                             time_step_ms=int(self.time_step*1000))
         self.n_robots_blue: int = n_robots_blue
         self.n_robots_yellow: int = n_robots_yellow
+        self.n_particles: int = n_particles
         
         # Get field dimensions
         self.field_type: int = field_type
@@ -84,7 +88,7 @@ class SSLBaseEnv(gym.Env):
 
         return self._frame_to_observations()
 
-    def render(self, mode: Optional = 'human') -> None:
+    def render(self, mode = 'human') -> None:
         '''
         Renders the game depending on 
         ball's and players' positions.
@@ -102,13 +106,18 @@ class SSLBaseEnv(gym.Env):
             from rsoccer_gym.Render import RCGymRender
             self.view = RCGymRender(self.n_robots_blue,
                                  self.n_robots_yellow,
-                                 self.field,
+                                 self.n_particles,
+                                 field_params = self.field,
                                  simulator='ssl')
 
+        self._render_particles()
         return self.view.render_frame(self.frame, return_rgb_array=mode == "rgb_array")
 
     def close(self):
         self.rsim.stop()
+
+    def _render_particles(self, particles):
+        raise NotImplementedError
 
     def _get_commands(self, action):
         '''returns a list of commands of type List[Robot] from type action_space action'''
