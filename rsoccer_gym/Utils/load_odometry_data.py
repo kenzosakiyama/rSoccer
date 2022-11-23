@@ -75,7 +75,7 @@ class Read:
             steps.append(step)
         return np.array(steps)
 
-    def get_odometry_movement(self):
+    def get_odometry_movement(self, degrees=False):
         '''
         Result: odometry[n] == sum(odometry_movement[:n+1]) + odometry[0]
         '''
@@ -83,10 +83,11 @@ class Read:
         odometry = self.get_odometry()
         for i in range(1,len(odometry)):
             movement = list(odometry[i] - odometry[i-1])
+            if degrees: movement[2] = np.degrees(movement[2])
             odometry_movement.append(movement)
         return np.array(odometry_movement)
 
-    def get_vision_movement(self):
+    def get_vision_movement(self, degrees=False):
         '''
         Result: vision[n] == sum(vision_movement[:n+1]) + vision[0]
         '''
@@ -94,11 +95,12 @@ class Read:
         vision = self.get_vision()
         for i in range(1,len(vision)):
             movement = list(vision[i] - vision[i-1])
+            if degrees: movement[2] = np.degrees(movement[2])
             vision_movement.append(movement)
         return np.array(vision_movement)
     
-    def get_vision_speeds_list(self):
-        vision_movements = self.get_vision_movement()
+    def get_vision_speeds_list(self, degrees=False):
+        vision_movements = self.get_vision_movement(degrees)
         steps = self.get_steps()
         speeds = []
         time_step = 0.005   # 5 ms between packets
@@ -109,8 +111,8 @@ class Read:
             speeds.append(speed)
         return np.array(speeds)
 
-    def get_odometry_speeds_list(self):
-        odometry_movements = self.get_odometry_movement()
+    def get_odometry_speeds_list(self, degrees=False):
+        odometry_movements = self.get_odometry_movement(degrees)
         steps = self.get_steps()
         speeds = []
         time_step = 0.005   # 5 ms between packets

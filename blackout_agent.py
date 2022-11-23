@@ -60,14 +60,15 @@ if __name__ == "__main__":
 
     # SET INITIAL ROBOT POSITION AND SEED
     initial_position = vision[0]
-    seed_x, seed_y, seed_theta = initial_position
+    seed_x, seed_y, _ = initial_position
     seed_radius = 1
+    initial_position[2] = np.degrees(initial_position[2])
 
     # Using VSS Single Agent env
     env = gym.make('SSLVisionBlackout-v0', 
                 vertical_lines_nr = vertical_lines_nr, 
                 n_particles = n_particles,
-                vision_data = vision)
+                initial_position = initial_position)
     env.reset()
 
     robot_tracker = ParticleFilter(
@@ -81,7 +82,7 @@ if __name__ == "__main__":
     robot_tracker.initialize_particles_from_seed_position(seed_x, seed_y, seed_radius)
 
     # speeds list
-    robot_speeds = data.get_vision_speeds_list()
+    robot_speeds = data.get_vision_speeds_list(degrees=True)
 
     # Run for 1 episode and print reward at the end
     for i in range(1):

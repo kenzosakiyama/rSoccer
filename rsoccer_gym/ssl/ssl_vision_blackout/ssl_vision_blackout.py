@@ -41,7 +41,7 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
             Pose confidence is higher than threshold or 30 seconds (1200 steps)
     """
 
-    def __init__(self, vision_data=[], field_type=1, vertical_lines_nr=1, n_particles=0):
+    def __init__(self, initial_position=[], field_type=1, vertical_lines_nr=1, n_particles=0):
         super().__init__(field_type=field_type, 
                         n_robots_blue=1, 
                         n_robots_yellow=0, 
@@ -55,8 +55,8 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
         self.particles = {}
 
         # LOADS VISION POSITION DATA
-        if len(vision_data)>0:
-            self.agent_position =  vision_data
+        if len(initial_position)>0:
+            self.initial_position =  initial_position
             self.using_log_data = True
         else:
             self.using_log_data = False
@@ -177,7 +177,8 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
 
         if self.using_log_data:
             for i in range(self.n_robots_blue):
-                pos = self.agent_position[0]
+                pos = self.initial_position
+                # import pdb;pdb.set_trace()
                 pos_frame.robots_blue[i] = Robot(x=pos[0], y=pos[1], theta=pos[2])
                 initial_position = np.array((
                         pos_frame.robots_blue[i].x, 
