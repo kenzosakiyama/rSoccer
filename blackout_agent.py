@@ -56,7 +56,6 @@ if __name__ == "__main__":
 
     # LOAD POSITION DATA
     vision = data.get_vision()
-    odometry = data.get_odometry()
 
     # SET INITIAL ROBOT POSITION AND SEED
     initial_position = vision[0]
@@ -68,7 +67,8 @@ if __name__ == "__main__":
     env = gym.make('SSLVisionBlackout-v0', 
                 vertical_lines_nr = vertical_lines_nr, 
                 n_particles = n_particles,
-                initial_position = initial_position)
+                initial_position = initial_position,
+                time_step=0.01)
     env.reset()
 
     robot_tracker = ParticleFilter(
@@ -81,17 +81,19 @@ if __name__ == "__main__":
     # robot_tracker.initialize_particles_uniform()
     robot_tracker.initialize_particles_from_seed_position(seed_x, seed_y, seed_radius)
 
-    # speeds list
+    # movements list
     robot_speeds = data.get_vision_speeds_list(degrees=True)
+    vision_movements = data.get_vision_movement(degrees=True)
+    odometry_movements = data.get_odometry_movement(degrees=True)
 
     # Run for 1 episode and print reward at the end
     for i in range(1):
         done = False
         while not done:
-            vx, vy, vw = robot_speeds[env.steps]
-            action = set_robot_speed(env, vx, vy, vw)
+            action = vision[env.steps]
             measurements, _, _, _ = env.step(action)
             movement, vision_points = split_observation(measurements)
+            movement = odometry_movements[env.steps]
             robot_tracker.update(movement, vision_points)
             env.update_particles(robot_tracker.particles)
             env.render()

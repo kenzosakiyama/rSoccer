@@ -41,12 +41,12 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
             Pose confidence is higher than threshold or 30 seconds (1200 steps)
     """
 
-    def __init__(self, initial_position=[], field_type=1, vertical_lines_nr=1, n_particles=0):
+    def __init__(self, initial_position=[], time_step=0.005, field_type=1, vertical_lines_nr=1, n_particles=0):
         super().__init__(field_type=field_type, 
                         n_robots_blue=1, 
                         n_robots_yellow=0, 
                         n_particles=n_particles,
-                        time_step=0.005)
+                        time_step=time_step)
         
         self.field.boundary_width = 0.3
         self.embedded_vision = SSLEmbeddedVision(vertical_lines_nr=vertical_lines_nr)
@@ -111,9 +111,16 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
 
     def _get_commands(self, actions):
         commands = []
-        angle = self.frame.robots_blue[0].theta
-        v_x, v_y, v_theta = self.convert_actions(actions, np.deg2rad(angle))
-        cmd = Robot(yellow=False, id=0, v_x=v_x, v_y=v_y, v_theta=v_theta)
+        if self.using_log_data:
+            x, y, theta = actions[0], actions[1], np.rad2deg(actions[2])
+            robot = Robot(yellow=False, id=0, x=x, y=y, theta=theta, v_x=0, v_y=0, v_theta=0)
+            self.frame.robots_blue[0] = robot
+            self.rsim.reset(self.frame)
+            cmd = robot
+        else:
+            angle = self.frame.robots_blue[0].theta
+            v_x, v_y, v_theta = self.convert_actions(actions, np.deg2rad(angle))
+            cmd = Robot(yellow=False, id=0, v_x=v_x, v_y=v_y, v_theta=v_theta)
         commands.append(cmd)
         return commands
 

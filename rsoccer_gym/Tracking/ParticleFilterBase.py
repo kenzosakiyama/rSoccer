@@ -73,6 +73,7 @@ class ParticleFilter:
         # Initialize filter settings
         self.n_particles = number_of_particles
         self.particles = []
+        self.n_active_particles = number_of_particles
 
         # State related settings
         self.state_dimension = len(Particle().state)
@@ -228,7 +229,7 @@ class ParticleFilter:
             particle.move(movement)
 
             if particle.is_out_of_field(x_max=self.x_max, y_max=self.y_max):
-                print("Particle Out of Field Boundaries")
+                # print("Particle Out of Field Boundaries")
                 particle.weight = 0
 
     def compute_observation(self, particle):
@@ -267,12 +268,12 @@ class ParticleFilter:
                     np.exp(-(diff[0]) * (diff[0]) /
                         (2 * self.measurement_noise[0] * self.measurement_noise[0]))
 
-                p_z_given_y = \
-                    np.exp(-(diff[1]) * (diff[1]) /
-                        (2 * self.measurement_noise[1] * self.measurement_noise[1]))
+                # p_z_given_y = \
+                #     np.exp(-(diff[1]) * (diff[1]) /
+                #         (2 * self.measurement_noise[1] * self.measurement_noise[1]))
 
                 # Incorporate likelihoods current landmark
-                likelihood_sample *= p_z_given_x * p_z_given_y
+                likelihood_sample *= p_z_given_x
                 if likelihood_sample<1e-15:
                     return 0
 
@@ -283,9 +284,11 @@ class ParticleFilter:
         '''
         TODO: implement method for checking if resampling is needed
         '''
-        for particle in self.particles:
-            if particle.weight>0.9:
-                return True
+        if self.n_active_particles < self.n_particles-10:
+            return True
+        # for particle in self.particles:
+        #     if particle.weight>0.9:
+        #         return True
         
         else: return False
 
@@ -299,9 +302,6 @@ class ParticleFilter:
         :param landmarks: Landmark positions.
         """
 
-        # Propagate the particles state according to the current movements
-        self.propagate_particles(movement)
-
         weights = []
         for particle in self.particles:
             # Compute current particle's weight based on likelihood
@@ -311,9 +311,12 @@ class ParticleFilter:
 
         # Update to normalized weights
         weights = self.normalize_weights(weights)
+        self.n_active_particles = self.n_particles
         for i in range(self.n_particles):
+            if weights[i]<1e-10:
+                self.n_active_particles = self.n_active_particles-1
             self.particles[i].weight = weights[i]
-        
+
         # Resample if needed
         if self.needs_resampling():
             mean_state = self.get_average_state()
@@ -325,6 +328,8 @@ class ParticleFilter:
             # for i in range(self.n_particles):
             #     self.particles[i].from_weighted_sample(samples[i])
     
+        # Propagate the particles state according to the current movements
+        self.propagate_particles(movement)
 
 if __name__=="__main__":
     from rsoccer_gym.ssl.ssl_gym_base import SSLBaseEnv
