@@ -63,6 +63,18 @@ class Read:
     def get_path(self):
         return self.path
 
+    def get_steps(self):
+        '''
+        Result: pckt_count[n] == sum(steps[:n+1]) + pckt_count[0]
+        '''
+        steps = [0]
+        pckt_count = self.get_packet_count()
+        for i in range (1, len(pckt_count)):
+            step = (pckt_count[i]-pckt_count[i-1])
+            if step<0: step=step+255    # pckts only count from 0 up to 254, so: if difference is negative -> sum 255
+            steps.append(step)
+        return np.array(steps)
+
     def get_odometry_movement(self):
         '''
         Result: odometry[n] == sum(odometry_movement[:n+1]) + odometry[0]
@@ -84,6 +96,30 @@ class Read:
             movement = list(vision[i] - vision[i-1])
             vision_movement.append(movement)
         return np.array(vision_movement)
+    
+    def get_vision_speeds_list(self):
+        vision_movements = self.get_vision_movement()
+        steps = self.get_steps()
+        speeds = []
+        time_step = 0.005   # 5 ms between packets
+        for i in range(0,len(steps)):
+            if steps[i]==0: vx, vy, vw = 0, 0, 0
+            else: vx, vy, vw = vision_movements[i]/(steps[i]*time_step)
+            speed = vx, vy, vw
+            speeds.append(speed)
+        return np.array(speeds)
+
+    def get_odometry_speeds_list(self):
+        odometry_movements = self.get_odometry_movement()
+        steps = self.get_steps()
+        speeds = []
+        time_step = 0.005   # 5 ms between packets
+        for i in range(0,len(steps)):
+            if steps[i]==0: vx, vy, vw = 0, 0, 0
+            else: vx, vy, vw = odometry_movements[i]/(steps[i]*time_step)
+            speed = vx, vy, vw
+            speeds.append(speed)
+        return np.array(speeds)
             
 if __name__ == "__main__":
     import os
@@ -94,6 +130,5 @@ if __name__ == "__main__":
     path = cwd+f'/odometry_data/quadrado_{quadrado_nr}.csv'
     file = Read(path)
 
-    print(file.get_vision_movement()-file.get_odometry_movement())
-    import pdb;pdb.set_trace()
+    print(file.get_vision_speeds_list())
 

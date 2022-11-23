@@ -80,14 +80,15 @@ if __name__ == "__main__":
     # robot_tracker.initialize_particles_uniform()
     robot_tracker.initialize_particles_from_seed_position(seed_x, seed_y, seed_radius)
 
-    # actions list
-    actions = split_actions_list(data.get_vision_movement(), env)
+    # speeds list
+    robot_speeds = data.get_vision_speeds_list()
 
     # Run for 1 episode and print reward at the end
     for i in range(1):
         done = False
         while not done:
-            action = actions[env.steps]
+            vx, vy, vw = robot_speeds[env.steps]
+            action = set_robot_speed(env, vx, vy, vw)
             measurements, _, _, _ = env.step(action)
             movement, vision_points = split_observation(measurements)
             robot_tracker.update(movement, vision_points)
