@@ -1,6 +1,4 @@
-from time import sleep
 import gym
-import rsoccer_gym
 import numpy as np
 from rsoccer_gym.Tracking.ParticleFilterBase import ParticleFilter
 from rsoccer_gym.Tracking import ResamplingAlgorithms
@@ -35,16 +33,41 @@ def split_observation(measurement):
     
     return movement, np.array(vision_points)
 
+def split_actions_list(vision_movements, env):
+    actions = []
+    for movement in vision_movements:
+        vx, vy, vw = movement/env.time_step
+        action = set_robot_speed(env, vx, vy, vw)
+        actions.append(action)
+    return actions
+
 if __name__ == "__main__":
+    import os
+    from rsoccer_gym.Utils.load_odometry_data import Read
+    cwd = os.getcwd()
+
     n_particles = 25
     vertical_lines_nr = 1
 
-    seed_x, seed_y, seed_radius = 0, 0, 1
+    # LOAD REAL ODOMETRY DATA
+    quadrado_nr = 10
+    path = cwd+f'/odometry_data/quadrado_{quadrado_nr}.csv'
+    data = Read(path)
+
+    # LOAD POSITION DATA
+    vision = data.get_vision()
+    odometry = data.get_odometry()
+
+    # SET INITIAL ROBOT POSITION AND SEED
+    initial_position = vision[0]
+    seed_x, seed_y, seed_theta = initial_position
+    seed_radius = 1
 
     # Using VSS Single Agent env
     env = gym.make('SSLVisionBlackout-v0', 
                 vertical_lines_nr = vertical_lines_nr, 
-                n_particles = n_particles)
+                n_particles = n_particles,
+                vision_data = vision)
     env.reset()
 
     robot_tracker = ParticleFilter(
@@ -57,11 +80,14 @@ if __name__ == "__main__":
     # robot_tracker.initialize_particles_uniform()
     robot_tracker.initialize_particles_from_seed_position(seed_x, seed_y, seed_radius)
 
+    # actions list
+    actions = split_actions_list(data.get_vision_movement(), env)
+
     # Run for 1 episode and print reward at the end
     for i in range(1):
         done = False
         while not done:
-            action = move_random(env)
+            action = actions[env.steps]
             measurements, _, _, _ = env.step(action)
             movement, vision_points = split_observation(measurements)
             robot_tracker.update(movement, vision_points)

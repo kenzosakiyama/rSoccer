@@ -41,18 +41,26 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
             Pose confidence is higher than threshold or 30 seconds (1200 steps)
     """
 
-    def __init__(self, field_type=1, vertical_lines_nr=1, n_particles=0):
+    def __init__(self, vision_data=[], field_type=1, vertical_lines_nr=1, n_particles=0):
         super().__init__(field_type=field_type, 
                         n_robots_blue=1, 
                         n_robots_yellow=0, 
                         n_particles=n_particles,
-                        time_step=0.025)
+                        time_step=0.005)
         
         self.field.boundary_width = 0.3
         self.embedded_vision = SSLEmbeddedVision(vertical_lines_nr=vertical_lines_nr)
 
         self.odometry = Odometry()
         self.particles = {}
+
+        # LOADS VISION POSITION DATA
+        if len(vision_data)>0:
+            self.agent_position =  vision_data
+            self.using_log_data = True
+        else:
+            self.using_log_data = False
+
 
         self.action_space = gym.spaces.Box(low=-1, high=1,
                                            shape=(3, ), dtype=np.float32)
@@ -103,12 +111,10 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
 
     def _get_commands(self, actions):
         commands = []
-
         angle = self.frame.robots_blue[0].theta
         v_x, v_y, v_theta = self.convert_actions(actions, np.deg2rad(angle))
         cmd = Robot(yellow=False, id=0, v_x=v_x, v_y=v_y, v_theta=v_theta)
         commands.append(cmd)
-
         return commands
 
     def convert_actions(self, action, angle):
@@ -168,20 +174,30 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
 
         places = KDTree()
         places.insert((pos_frame.ball.x, pos_frame.ball.y))
-        
-        for i in range(self.n_robots_blue):
-            pos = (x(), y())
-            while places.get_nearest(pos)[1] < min_dist:
-                pos = (x(), y())
 
-            places.insert(pos)
-            pos_frame.robots_blue[i] = Robot(x=pos[0], y=pos[1], theta=theta())
-            pos_frame.robots_blue[i] = Robot(x=0, y=0, theta=0)
-            initial_position = np.array((
-                    pos_frame.robots_blue[i].x, 
-                    pos_frame.robots_blue[i].y, 
-                    pos_frame.robots_blue[i].theta))
-            self.odometry.__init__(initial_position)
+        if self.using_log_data:
+            for i in range(self.n_robots_blue):
+                pos = self.agent_position[0]
+                pos_frame.robots_blue[i] = Robot(x=pos[0], y=pos[1], theta=pos[2])
+                initial_position = np.array((
+                        pos_frame.robots_blue[i].x, 
+                        pos_frame.robots_blue[i].y, 
+                        pos_frame.robots_blue[i].theta))
+                self.odometry.__init__(initial_position)            
+
+        else:
+            for i in range(self.n_robots_blue):
+                pos = (x(), y())
+                while places.get_nearest(pos)[1] < min_dist:
+                    pos = (x(), y())
+
+                places.insert(pos)
+                pos_frame.robots_blue[i] = Robot(x=pos[0], y=pos[1], theta=theta())
+                initial_position = np.array((
+                        pos_frame.robots_blue[i].x, 
+                        pos_frame.robots_blue[i].y, 
+                        pos_frame.robots_blue[i].theta))
+                self.odometry.__init__(initial_position)
         
         for i in range(self.n_particles):
             pos_frame.particles[i] = Particle()
