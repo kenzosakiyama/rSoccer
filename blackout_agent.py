@@ -89,10 +89,10 @@ if __name__ == "__main__":
     # Run for 1 episode and print reward at the end
     for i in range(1):
         done = False
-        while not done:
+        while env.steps<len(vision):
             action = vision[env.steps]
             measurements, _, _, _ = env.step(action)
-            movement, vision_points = split_observation(measurements)
+            _, vision_points = split_observation(measurements)
             movement = odometry_movements[env.steps]
             robot_tracker.update(movement, vision_points)
             env.update_particles(robot_tracker.particles)

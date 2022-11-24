@@ -268,12 +268,12 @@ class ParticleFilter:
                     np.exp(-(diff[0]) * (diff[0]) /
                         (2 * self.measurement_noise[0] * self.measurement_noise[0]))
 
-                # p_z_given_y = \
-                #     np.exp(-(diff[1]) * (diff[1]) /
-                #         (2 * self.measurement_noise[1] * self.measurement_noise[1]))
+                p_z_given_y = \
+                    np.exp(-(diff[1]) * (diff[1]) /
+                        (2 * self.measurement_noise[1] * self.measurement_noise[1]))
 
                 # Incorporate likelihoods current landmark
-                likelihood_sample *= p_z_given_x
+                likelihood_sample *= p_z_given_x*p_z_given_y
                 if likelihood_sample<1e-15:
                     return 0
 
@@ -284,12 +284,13 @@ class ParticleFilter:
         '''
         TODO: implement method for checking if resampling is needed
         '''
-        if self.n_active_particles < self.n_particles-10:
+        for particle in self.particles:
+            if particle.weight>0.95:
+                return False
+
+        if self.n_active_particles < self.n_particles-5:
             return True
-        # for particle in self.particles:
-        #     if particle.weight>0.9:
-        #         return True
-        
+
         else: return False
 
     def update(self, movement, measurements):
@@ -313,7 +314,7 @@ class ParticleFilter:
         weights = self.normalize_weights(weights)
         self.n_active_particles = self.n_particles
         for i in range(self.n_particles):
-            if weights[i]<1e-10:
+            if weights[i]<1e-13:
                 self.n_active_particles = self.n_active_particles-1
             self.particles[i].weight = weights[i]
 
