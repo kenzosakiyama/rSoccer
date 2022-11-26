@@ -68,7 +68,7 @@ if __name__ == "__main__":
                 vertical_lines_nr = vertical_lines_nr, 
                 n_particles = n_particles,
                 initial_position = initial_position,
-                time_step=0.01)
+                time_step=0.033)
     env.reset()
 
     robot_tracker = ParticleFilter(
@@ -77,7 +77,7 @@ if __name__ == "__main__":
                                     process_noise=[1, 1, 1],
                                     measurement_noise=[1, 1],
                                     vertical_lines_nr=vertical_lines_nr,
-                                    resampling_algorithm=ResamplingAlgorithms.STRATIFIED)
+                                    resampling_algorithm=ResamplingAlgorithms.SYSTEMATIC)
     # robot_tracker.initialize_particles_uniform()
     robot_tracker.initialize_particles_from_seed_position(seed_x, seed_y, seed_radius)
 

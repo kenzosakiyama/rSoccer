@@ -326,15 +326,17 @@ class ParticleFilter:
             self.particles[i].weight = weights[i]
 
         # Resample if needed
-        if self.needs_resampling():
-            mean_state = self.get_average_state()
-            self.initialize_particles_gaussian(mean_vector=mean_state, standard_deviation_vector=[0.1, 0.1, 30])
-            # samples = self.resampler.resample(
-            #                 self.particles_as_weigthed_samples(), 
-            #                 self.n_particles, 
-            #                 self.resampling_algorithm)
-            # for i in range(self.n_particles):
-            #     self.particles[i].from_weighted_sample(samples[i])
+        if True:
+            samples = self.resampler.resample(
+                            self.particles_as_weigthed_samples(), 
+                            self.n_particles, 
+                            self.resampling_algorithm)
+            for i in range(self.n_particles):
+                self.particles[i].from_weighted_sample(samples[i])
+        # if self.needs_resampling():
+            # mean_state = self.get_average_state()
+            # self.initialize_particles_gaussian(mean_vector=mean_state, standard_deviation_vector=[0.1, 0.1, 30])
+
     
         # Propagate the particles state according to the current movements
         self.propagate_particles(movement)
