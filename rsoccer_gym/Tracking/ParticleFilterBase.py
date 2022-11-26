@@ -50,7 +50,14 @@ class Particle:
         else:
             return False
 
+    def rotate_to_global(self, local_x, local_y, robot_w):
+        theta = np.deg2rad(self.theta)
+        global_x = local_x*np.cos(theta) - local_y*np.sin(theta)
+        global_y = local_x*np.sin(theta) + local_y*np.cos(theta)
+        return global_x, global_y, robot_w
+
     def move(self, movement):
+        movement = self.rotate_to_global(movement[0], movement[1], movement[2])
         self.state = [sum(x) for x in zip(self.state, movement)]
         self.x = self.state[0]
         self.y = self.state[1]
@@ -285,10 +292,10 @@ class ParticleFilter:
         TODO: implement method for checking if resampling is needed
         '''
         for particle in self.particles:
-            if particle.weight>0.95:
-                return False
+            if particle.weight>0.9:
+                return True
 
-        if self.n_active_particles < self.n_particles-5:
+        if self.n_active_particles < int(0.5*self.n_active_particles):
             return True
 
         else: return False

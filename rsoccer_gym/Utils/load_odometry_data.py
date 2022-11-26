@@ -75,7 +75,7 @@ class Read:
             steps.append(step)
         return np.array(steps)
 
-    def get_odometry_movement(self, degrees=False):
+    def get_odometry_movement(self, degrees=False, local=False):
         '''
         Result: odometry[n] == sum(odometry_movement[:n+1]) + odometry[0]
         '''
@@ -122,6 +122,13 @@ class Read:
             speed = vx, vy, vw
             speeds.append(speed)
         return np.array(speeds)
+    
+    def rotate_to_local(self, global_x, global_y, robot_w):
+        local_x = global_x*np.cos(robot_w) + global_y*np.sin(robot_w)
+        local_y = -global_x*np.sin(robot_w) + global_y*np.cos(robot_w)
+
+        return local_x, local_y
+        
             
 if __name__ == "__main__":
     import os
