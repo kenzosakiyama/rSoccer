@@ -213,7 +213,10 @@ class Resampler:
                 m += 1
 
             # Add state sample (uniform weights)
-            new_samples.append([1.0/N, copy.deepcopy(samples[m][1])])
+            standard_deviation_vector = [0.1, 0.1, 1]
+            new_sample = np.random.normal(samples[m][1], standard_deviation_vector, 3).tolist()
+            # new_sample = copy.deepcopy(samples[m][1])
+            new_samples.append([1.0/N, new_sample])
 
             # Added another sample
             n += 1

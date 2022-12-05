@@ -46,7 +46,7 @@ if __name__ == "__main__":
     from rsoccer_gym.Utils.load_odometry_data import Read
     cwd = os.getcwd()
 
-    n_particles = 100
+    n_particles = 50
     vertical_lines_nr = 1
 
     # LOAD REAL ODOMETRY DATA
@@ -59,8 +59,8 @@ if __name__ == "__main__":
 
     # SET INITIAL ROBOT POSITION AND SEED
     initial_position = vision[0]
-    seed_x, seed_y, _ = initial_position
-    seed_radius = 1
+    seed_x, seed_y, seed_theta = initial_position
+    seed_radius = 0.01
     initial_position[2] = np.degrees(initial_position[2])
 
     # Using VSS Single Agent env

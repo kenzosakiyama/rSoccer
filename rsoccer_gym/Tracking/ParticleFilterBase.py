@@ -31,7 +31,7 @@ class Particle:
         self.weight = weight
 
     def from_weighted_sample(self, sample):
-        self = Particle(initial_state=sample[1], weight=sample[0])
+        self.__init__(weight=sample[0], initial_state=sample[1])
 
     def as_weighted_sample(self):
         return [self.weight,[self.x, self.y, self.theta]]
@@ -100,6 +100,7 @@ class ParticleFilter:
         # Resampling
         self.resampling_algorithm = resampling_algorithm
         self.resampler = Resampler()
+        self.displacement = [0, 0, 0]
 
     def initialize_particles_from_seed_position(self, seed_x, seed_y, max_distance):
         """
@@ -227,9 +228,10 @@ class ParticleFilter:
         Propagate particles from odometry movement measurements. 
         Return the propagated particle.
 
-        :param movement: [forward motion, side motion and rotation] in meters and radians
+        :param movement: [forward motion, side motion and rotation] in meters and degrees
         """
         # TODO: Add noise
+        self.displacement = [sum(x) for x in zip(self.displacement, movement)]
         
         # Move particles
         for particle in self.particles:
@@ -291,12 +293,17 @@ class ParticleFilter:
         '''
         TODO: implement method for checking if resampling is needed
         '''
+        distance = math.sqrt(self.displacement[0]**2 + self.displacement[1]**2)
+        dtheta = self.displacement[2]
+        if distance>1:
+            return True
+
         for particle in self.particles:
             if particle.weight>0.9:
                 return True
 
-        if self.n_active_particles < int(0.5*self.n_active_particles):
-            return True
+        # if self.n_active_particles < int(0.5*self.n_active_particles):
+        #     return True
 
         else: return False
 
@@ -326,7 +333,8 @@ class ParticleFilter:
             self.particles[i].weight = weights[i]
 
         # Resample if needed
-        if True:
+        if self.needs_resampling():
+            self.displacement = [0, 0, 0]
             samples = self.resampler.resample(
                             self.particles_as_weigthed_samples(), 
                             self.n_particles, 
@@ -334,8 +342,9 @@ class ParticleFilter:
             for i in range(self.n_particles):
                 self.particles[i].from_weighted_sample(samples[i])
         # if self.needs_resampling():
-            # mean_state = self.get_average_state()
-            # self.initialize_particles_gaussian(mean_vector=mean_state, standard_deviation_vector=[0.1, 0.1, 30])
+        #     self.displacement = [0, 0, 0]
+        #     mean_state = self.get_average_state()
+        #     self.initialize_particles_gaussian(mean_vector=mean_state, standard_deviation_vector=[0.1, 0.1, 30])
 
     
         # Propagate the particles state according to the current movements
