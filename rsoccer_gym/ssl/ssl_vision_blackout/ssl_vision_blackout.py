@@ -53,6 +53,7 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
 
         self.odometry = Odometry()
         self.particles = {}
+        self.trackers = {}
 
         # LOADS VISION POSITION DATA
         if len(initial_position)>0:
@@ -77,35 +78,38 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
 
         print('Environment initialized')
 
-    def update_particles(self, particles):
+    def update_particles(self, particles, odometry_tracking, particle_filter_tracking):
         self.particles = particles
+        self.trackers[0] = Particle(odometry_tracking, 0.2)
+        self.trackers[1] = Particle(particle_filter_tracking, 0.2)
 
     def _render_particles(self):
         for i in range(self.n_particles):
             self.frame.particles[i] = self.particles[i]
+        self.frame.trackers = self.trackers
 
     def _frame_to_observations(self):
 
         observation = []
 
-        for i in range(self.n_robots_blue):
-            movement = self.odometry.get_robot_movement(
-                                self.frame.robots_blue[i].v_x,
-                                self.frame.robots_blue[i].v_y,
-                                self.frame.robots_blue[i].v_theta,
-                                self.time_step)
-            observation.append(movement[0])
-            observation.append(movement[1])
-            observation.append(movement[2])
-            
-            boundary_points = self.embedded_vision.detect_boundary_points(
-                                self.frame.robots_blue[i].x, 
-                                self.frame.robots_blue[i].y,
-                                self.frame.robots_blue[i].theta, 
-                                self.field)
-            for point in boundary_points:
-                observation.append(point[0])
-                observation.append(point[1])
+        # for i in range(self.n_robots_blue):
+        movement = self.odometry.get_robot_movement(
+                            self.frame.robots_blue[0].v_x,
+                            self.frame.robots_blue[0].v_y,
+                            self.frame.robots_blue[0].v_theta,
+                            self.time_step)
+        observation.append(movement[0])
+        observation.append(movement[1])
+        observation.append(movement[2])
+        
+        boundary_points = self.embedded_vision.detect_boundary_points(
+                            self.frame.robots_blue[0].x, 
+                            self.frame.robots_blue[0].y,
+                            self.frame.robots_blue[0].theta, 
+                            self.field)
+        for point in boundary_points:
+            observation.append(point[0])
+            observation.append(point[1])
 
         return np.array(observation, dtype=np.float32)
 
@@ -209,5 +213,6 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
         
         for i in range(self.n_particles):
             pos_frame.particles[i] = Particle()
+
 
         return pos_frame

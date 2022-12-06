@@ -24,12 +24,13 @@ class RCGymRender:
     '''
 
     def __init__(self, n_robots_blue: int,
-                 n_robots_yellow: int,
-                 n_particles: int,
-                 field_params: Field,
-                 simulator: str = 'vss',
-                 width: int = int(1.5*750),
-                 height: int = int(1.5*650)) -> None:
+                n_robots_yellow: int,
+                n_particles: int,
+                field_params: Field,
+                simulator: str = 'vss',
+                n_trackers: int = int(2),
+                width: int = int(1.5*750),
+                height: int = int(1.5*650)) -> None:
         '''
         Creates our View object.
 
@@ -58,11 +59,13 @@ class RCGymRender:
         self.n_robots_blue = n_robots_blue
         self.n_robots_yellow = n_robots_yellow
         self.n_particles = n_particles
+        self.n_trackers = n_trackers
         self.field = field_params
         self.ball: rendering.Transform = None
         self.blue_robots: List[rendering.Transform] = []
         self.yellow_robots: List[rendering.Transform] = []
         self.particles: List[rendering.Transform] = []
+        self.trackers: List[rendering.Transform] = []
 
         # Window dimensions in pixels
         screen_width = width
@@ -108,7 +111,9 @@ class RCGymRender:
             self._add_ssl_robots()
             # add filter particles
             self._add_particles()
-        
+            # add trackers
+            self._add_trackers()     
+
         # add ball
         self._add_ball()
 
@@ -139,6 +144,13 @@ class RCGymRender:
             scale = 2.5*particle.weight + 0.5
             if particle.weight == 0: scale = 0
             self.particles[i].set_scale(scale, scale)
+
+        for i, tracker in enumerate(frame.trackers.values()):
+            self.trackers[i].set_translation(tracker.x, tracker.y)
+            self.trackers[i].set_rotation(np.deg2rad(tracker.theta))  # theta in radians or degrees?
+            scale = 2.5*tracker.weight + 0.5
+            if tracker.weight == 0: scale = 0
+            self.trackers[i].set_scale(scale, scale)
 
         for i, blue in enumerate(frame.robots_blue.values()):
             self.blue_robots[i].set_translation(blue.x, blue.y)
@@ -544,12 +556,20 @@ class RCGymRender:
                 self._add_particle()
             )
 
-    def _add_particle(self, likelihood = 1) -> rendering.Transform:
+    def _add_trackers(self) -> None:
+        # Add trackers
+        for i in range(self.n_trackers):
+            self.trackers.append(
+                self._add_particle(is_tracker=True)
+            )
+
+    def _add_particle(self, likelihood = 1, is_tracker=False) -> rendering.Transform:
         particle_radius: float = self.field.rbt_radius
         particle_transform:rendering.Transform = rendering.Transform()
 
         particle: rendering.Geom = rendering.make_circle(particle_radius, filled=True)
-        particle._color.vec4 = (*TAG_BLUE, 0.5)
+        if is_tracker: particle._color.vec4 = (*TAG_YELLOW, 0.5)
+        else: particle._color.vec4 = (*TAG_BLUE, 0.5)
         particle.add_attr(particle_transform)
 
         particle_outline: rendering.Geom = rendering.make_circle(particle_radius*1.1, filled=False)
