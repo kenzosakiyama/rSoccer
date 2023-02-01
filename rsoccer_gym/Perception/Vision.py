@@ -9,15 +9,18 @@ class Camera:
     def __init__(
                 self,
                 camera_matrix = np.identity(3),
+                camera_distortion=np.zeros((4,1)),
                 camera_to_robot_axis_offset = 100,
                 camera_height = 175,
-                camera_FOV = 78
+                camera_FOV = 78,
                 ):
 
         self.intrinsic_parameters = camera_matrix
+        self.distortion_parameters = camera_distortion
         self.rotation_vector: np.array((3,1)).T
         self.rotation_matrix: np.array((3,3))
         self.translation_vector: np.array((3,1)).T
+        
 
         self.height = camera_height                 # IN MILLIMETERS
         self.offset = camera_to_robot_axis_offset   # IN MILLIMETERS
@@ -36,11 +39,13 @@ class Camera:
 
         points2d: pixel positions on image
         """
+        
         _,rvec,tvec=cv2.solvePnP(
                                 points3d,
                                 points2d,
-                                self.intrinsic_parameters
-                                        )                                
+                                self.intrinsic_parameters,
+                                self.distortion_parameters
+                                )                                
 
         rmtx, jacobian=cv2.Rodrigues(rvec)
         
@@ -59,14 +64,25 @@ class SSLEmbeddedVision:
     '''
     Class for simulating Vision Blackout vision module
     '''
+
+    path_to_intrinsic_parameters = "/home/rc-blackout/rSoccer/rsoccer_gym/Perception/camera_matrix_C922.txt"
+    path_to_points3d = "/home/rc-blackout/rSoccer/rsoccer_gym/Perception/calibration_points3d.txt"
+    path_to_points2d = "/home/rc-blackout/rSoccer/rsoccer_gym/Perception/calibration_points2d.txt"
+    camera_matrix = np.loadtxt(path_to_intrinsic_parameters)
+    points3d = np.loadtxt(path_to_points3d, dtype="float64")
+    points2d = np.loadtxt(path_to_points2d, dtype="float64")
+
     def __init__(
-                self, 
-                camera = Camera(),
+                self,
                 vertical_lines_nr = 1,
                 input_width = 640,
-                input_height = 480
+                input_height = 480,
+                camera_matrix = camera_matrix,
+                points3d = points3d,
+                points2d = points2d
                 ):
-        self.camera = camera
+        self.camera = Camera(camera_matrix=camera_matrix)
+        self.camera.compute_pose_from_points(points3d=points3d, points2d=points2d)
         self.vertical_scan_angles = []      # IN DEGREES
         for i in range(0,vertical_lines_nr):
             angle = (i+1)*self.camera.FOV/(vertical_lines_nr+1) - self.camera.FOV/2
@@ -132,6 +148,15 @@ class SSLEmbeddedVision:
         else:
             return x2, y2
 
+    def convert_xy_to_angles(self, x, y):
+        '''
+        Converts an x, y relative position to relative vertical and horizontal angles, as suggested in: 
+            Fast and Robust Edge-Based Localization in the Sony Four-Legged Robot League - 2003
+        '''
+        theta_v = np.rad2deg(np.arctan2(self.camera.height, x))
+        theta_h = np.rad2deg(np.arctan2(y, x))
+        return [theta_v, theta_h]
+
     def detect_boundary_points(self, x, y, w, field):
         intercepts = []
         for angle in self.vertical_scan_angles:
@@ -140,6 +165,7 @@ class SSLEmbeddedVision:
             interception_x, interception_y = self.intercept_field_boundaries(x, y, line_dir, field)
             interception_x, interception_y = self.convert_to_local(interception_x, interception_y, x, y, w)
             intercepts.append([interception_x, interception_y])
+            # intercepts.append(self.convert_xy_to_angles(interception_x, interception_y))
 
         return intercepts
     
@@ -163,9 +189,7 @@ if __name__ == "__main__":
         
     env.field.boundary_width = 0.3
 
-    vision = SSLEmbeddedVision(
-        camera = Camera(),
-        vertical_lines_nr=6)
+    vision = SSLEmbeddedVision(vertical_lines_nr=6)
     
     boundary_points = vision.detect_boundary_points(0, 0, 0, env.field)
     for point in boundary_points:

@@ -65,6 +65,10 @@ class RCGymRender:
         self.blue_robots: List[rendering.Transform] = []
         self.yellow_robots: List[rendering.Transform] = []
         self.particles: List[rendering.Transform] = []
+        '''
+        tracker[0]: odometry data
+        tracker[1]: monte carlo localization (MCL) weighted mean pose
+        '''
         self.trackers: List[rendering.Transform] = []
 
         # Window dimensions in pixels
@@ -559,16 +563,23 @@ class RCGymRender:
     def _add_trackers(self) -> None:
         # Add trackers
         for i in range(self.n_trackers):
+            if i==0: is_odometry = True
+            else: is_odometry = False
             self.trackers.append(
-                self._add_particle(is_tracker=True)
+                self._add_particle(is_odometry, is_tracker=True)
             )
 
-    def _add_particle(self, likelihood = 1, is_tracker=False) -> rendering.Transform:
+    def _add_particle(self, is_odometry = False, is_tracker=False) -> rendering.Transform:
         particle_radius: float = self.field.rbt_radius
         particle_transform:rendering.Transform = rendering.Transform()
 
         particle: rendering.Geom = rendering.make_circle(particle_radius, filled=True)
-        if is_tracker: particle._color.vec4 = (*TAG_YELLOW, 0.5)
+        if is_tracker: 
+            if is_odometry:
+                particle._color.vec4 = (*TAG_RED, 0.5)
+            else:
+                particle._color.vec4 = (*TAG_YELLOW, 0.5)
+
         else: particle._color.vec4 = (*TAG_BLUE, 0.5)
         particle.add_attr(particle_transform)
 

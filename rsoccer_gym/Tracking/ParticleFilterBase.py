@@ -1,6 +1,4 @@
-from abc import abstractmethod
 from cmath import cos
-import imp
 import numpy as np
 import math
 from rsoccer_gym.Perception.Vision import SSLEmbeddedVision
@@ -56,7 +54,14 @@ class Particle:
         global_y = local_x*np.sin(theta) + local_y*np.cos(theta)
         return global_x, global_y, robot_w
 
+    def add_move_noise(self, movement):
+        movement_abs = [np.abs(movement[0]), np.abs(movement[1]), np.abs(movement[2])]
+        standard_deviation_vector = [1, 1, 1]*np.array(movement_abs)
+
+        return np.random.normal(movement, standard_deviation_vector, 3).tolist()
+
     def move(self, movement):
+        movement = self.add_move_noise(movement)
         movement = self.rotate_to_global(movement[0], movement[1], movement[2])
         self.state = [sum(x) for x in zip(self.state, movement)]
         self.x = self.state[0]
