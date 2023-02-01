@@ -341,6 +341,12 @@ class ParticleFilter:
                             self.resampling_algorithm)
             for i in range(self.n_particles):
                 self.particles[i].from_weighted_sample(samples[i])
+                weights[i] = self.particles[i].weight
+            self.normalize_weights(weights)
+            for i in range(self.n_particles):
+                if weights[i]<1e-13:
+                    self.n_active_particles = self.n_active_particles-1
+                self.particles[i].weight = weights[i]
         # if self.needs_resampling():
         #     self.displacement = [0, 0, 0]
         #     mean_state = self.get_average_state()

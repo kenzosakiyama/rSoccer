@@ -46,7 +46,7 @@ if __name__ == "__main__":
     from rsoccer_gym.Utils.load_odometry_data import Read
     cwd = os.getcwd()
 
-    n_particles = 1
+    n_particles = 50
     vertical_lines_nr = 1
 
     # LOAD REAL ODOMETRY DATA
@@ -86,19 +86,16 @@ if __name__ == "__main__":
     vision_movements = data.get_vision_movement(degrees=True)
     odometry_movements = data.get_odometry_movement(degrees=True)
 
-    # Run for 1 episode and print reward at the end
-    for i in range(1):
-        done = False
-        while env.steps<len(vision):
-            robot_x, robot_y, robot_w = odometry[env.steps]
-            action = vision[env.steps]
-            measurements, _, _, _ = env.step(action)
-            _, vision_points = split_observation(measurements)
-            dx, dy, dtheta = odometry_movements[env.steps]
-            dx, dy = data.rotate_to_local(dx, dy, robot_w)
-            movement = [dx, dy, dtheta]
-            robot_tracker.update(movement, vision_points)
-            odometry_tracking = [robot_x, robot_y, np.rad2deg(robot_w)]
-            particles_filter_tracking = robot_tracker.get_average_state()            
-            env.update_particles(robot_tracker.particles, odometry_tracking, particles_filter_tracking)
-            env.render()
+    while env.steps<len(vision):
+        robot_x, robot_y, robot_w = odometry[env.steps]
+        action = vision[env.steps]
+        measurements, _, _, _ = env.step(action)
+        _, vision_points = split_observation(measurements)
+        dx, dy, dtheta = odometry_movements[env.steps]
+        dx, dy = data.rotate_to_local(dx, dy, robot_w)
+        movement = [dx, dy, dtheta]
+        robot_tracker.update(movement, vision_points)
+        odometry_tracking = [robot_x, robot_y, np.rad2deg(robot_w)]
+        particles_filter_tracking = robot_tracker.get_average_state()         
+        env.update_particles(robot_tracker.particles, odometry_tracking, particles_filter_tracking)
+        env.render()
