@@ -83,6 +83,7 @@ class ParticleFilter:
             print("Warning: initializing particle filter with number of particles < 1: {}".format(number_of_particles))
         
         # Initialize filter settings
+        self.sum_weights = 0
         self.n_particles = number_of_particles
         self.particles = []
         self.n_active_particles = number_of_particles
@@ -216,17 +217,17 @@ class ParticleFilter:
         Normalize all particle weights.
         """
         # Compute sum weighted samples
-        sum_weights = sum(weights)     
+        self.sum_weights = sum(weights)     
 
         # Check if weights are non-zero
-        if sum_weights < 1e-15:
+        if self.sum_weights < 1e-15:
             print("Weight normalization failed: sum of all weights is {} (weights will be reinitialized)".format(sum_weights))
 
             # Set uniform weights
             return [(1.0 / len(weights)) for i in weights]
 
         # Return normalized weights
-        return [weight / sum_weights for weight in weights]
+        return [weight / self.sum_weights for weight in weights]
 
     def propagate_particles(self, movement):
         """

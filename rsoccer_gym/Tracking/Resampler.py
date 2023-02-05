@@ -19,7 +19,6 @@ class ResamplingAlgorithms(Enum):
     STRATIFIED = 3
     SYSTEMATIC = 4
 
-
 class Resampler:
     """
     Resample class that implements different resampling methods.
@@ -213,7 +212,8 @@ class Resampler:
                 m += 1
 
             # Add state sample (uniform weights)
-            standard_deviation_vector = [0.1, 0.1, 1]
+            # standard_deviation_vector = [0.1, 0.1, 1]
+            standard_deviation_vector = [0.2*(1-samples[m][0]), 0.2*(1-samples[m][0]), 15*(1-samples[m][0])]
             new_sample = np.random.normal(samples[m][1], standard_deviation_vector, 3).tolist()
             weight = samples[m][0]
             # new_sample = copy.deepcopy(samples[m][1])

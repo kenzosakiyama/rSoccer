@@ -101,6 +101,6 @@ if __name__ == "__main__":
         particles_filter_tracking = robot_tracker.get_average_state()         
         env.update_particles(robot_tracker.particles, odometry_tracking, particles_filter_tracking)
         env.render()
-        if counter<0:
+        if counter<100:
             env.update_step(0)
             counter += 1
