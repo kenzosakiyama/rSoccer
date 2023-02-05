@@ -83,6 +83,9 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
         self.trackers[0] = Particle(odometry_tracking, 0.2)
         self.trackers[1] = Particle(particle_filter_tracking, 0.2)
 
+    def update_step(self, step):
+        self.steps = step
+
     def _render_particles(self):
         for i in range(self.n_particles):
             self.frame.particles[i] = self.particles[i]

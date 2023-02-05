@@ -307,7 +307,7 @@ class ParticleFilter:
             if particle.weight>0.9:
                 return True
 
-        # if self.n_active_particles < int(0.5*self.n_active_particles):
+        # if self.n_active_particles < int(0.5*self.n_particles):
         #     return True
 
         else: return False

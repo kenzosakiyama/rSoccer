@@ -46,11 +46,11 @@ if __name__ == "__main__":
     from rsoccer_gym.Utils.load_odometry_data import Read
     cwd = os.getcwd()
 
-    n_particles = 50
+    n_particles = 100
     vertical_lines_nr = 1
 
     # LOAD REAL ODOMETRY DATA
-    quadrado_nr = 10
+    quadrado_nr = 15
     path = cwd+f'/odometry_data/quadrado_{quadrado_nr}.csv'
     data = Read(path)
 
@@ -59,8 +59,8 @@ if __name__ == "__main__":
 
     # SET INITIAL ROBOT POSITION AND SEED
     initial_position = vision[0]
-    seed_x, seed_y, seed_theta = initial_position
     seed_radius = 1
+    seed_x, seed_y, seed_theta = initial_position
     initial_position[2] = np.degrees(initial_position[2])
 
     # Using VSS Single Agent env
@@ -86,6 +86,8 @@ if __name__ == "__main__":
     vision_movements = data.get_vision_movement(degrees=True)
     odometry_movements = data.get_odometry_movement(degrees=True)
 
+    counter = 0
+
     while env.steps<len(vision):
         robot_x, robot_y, robot_w = odometry[env.steps]
         action = vision[env.steps]
@@ -99,3 +101,6 @@ if __name__ == "__main__":
         particles_filter_tracking = robot_tracker.get_average_state()         
         env.update_particles(robot_tracker.particles, odometry_tracking, particles_filter_tracking)
         env.render()
+        if counter<0:
+            env.update_step(0)
+            counter += 1
