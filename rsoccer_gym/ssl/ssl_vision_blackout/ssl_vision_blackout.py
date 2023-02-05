@@ -105,7 +105,7 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
         observation.append(movement[1])
         observation.append(movement[2])
         
-        boundary_points = self.embedded_vision.detect_boundary_points(
+        boundary_points = self.embedded_vision.detect_boundary_points_random(
                             self.frame.robots_blue[0].x, 
                             self.frame.robots_blue[0].y,
                             self.frame.robots_blue[0].theta, 

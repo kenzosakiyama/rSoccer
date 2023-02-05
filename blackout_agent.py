@@ -46,7 +46,7 @@ if __name__ == "__main__":
     from rsoccer_gym.Utils.load_odometry_data import Read
     cwd = os.getcwd()
 
-    n_particles = 100
+    n_particles = 50
     vertical_lines_nr = 1
 
     # LOAD REAL ODOMETRY DATA

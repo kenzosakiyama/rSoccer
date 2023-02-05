@@ -10,7 +10,7 @@ class Camera:
                 self,
                 camera_matrix = np.identity(3),
                 camera_distortion=np.zeros((4,1)),
-                camera_to_robot_axis_offset = 100,
+                camera_to_robot_axis_offset = 90,
                 camera_height = 175,
                 camera_FOV = 78,
                 ):
@@ -83,11 +83,26 @@ class SSLEmbeddedVision:
                 ):
         self.camera = Camera(camera_matrix=camera_matrix)
         self.camera.compute_pose_from_points(points3d=points3d, points2d=points2d)
-        self.vertical_scan_angles = []      # IN DEGREES
+        self.vertical_lines_nr = vertical_lines_nr
+        self.set_detection_angles_random(vertical_lines_nr)    # IN DEGREES  
+
+    def set_detection_angles_uniform(self, vertical_lines_nr):
+        vertical_scan_angles = []
         for i in range(0,vertical_lines_nr):
             angle = (i+1)*self.camera.FOV/(vertical_lines_nr+1) - self.camera.FOV/2
-            self.vertical_scan_angles.append(angle)
-        
+            vertical_scan_angles.append(angle)
+        self.vertical_scan_angles = vertical_scan_angles
+
+    def set_detection_angles_random(self, vertical_lines_nr):
+        vertical_scan_angles = []
+        for i in range(0,vertical_lines_nr):
+            angle = np.random.uniform(-self.camera.FOV/2, self.camera.FOV/2)
+            vertical_scan_angles.append(angle)
+        self.vertical_scan_angles = vertical_scan_angles
+
+    def set_detection_angles_from_list(self, vertical_angles_list = [0]):
+        self.vertical_scan_angles = vertical_angles_list
+
     def project_line(self, x, y, theta):
         coef = math.tan(math.radians(theta))
         intercept = y - coef*x
@@ -157,6 +172,15 @@ class SSLEmbeddedVision:
         theta_h = np.rad2deg(np.arctan2(y, x))
         return [theta_v, theta_h]
 
+    def convert_xy_to_polar(self, x, y):
+        '''
+        Converts an x, y relative position to relative polar coordinates (distance and bearing angle), as suggested in: 
+            Monte Carlo Localization for Robocup 3D Soccer Simulation League - 2016
+        '''
+        distance = np.sqrt(x**2 + y**2)
+        theta = np.rad2deg(np.arctan2(y, x))
+        return [distance, theta]
+
     def detect_boundary_points(self, x, y, w, field):
         intercepts = []
         for angle in self.vertical_scan_angles:
@@ -164,17 +188,31 @@ class SSLEmbeddedVision:
             line_dir = ((line_dir + 180) % 360) - 180
             interception_x, interception_y = self.intercept_field_boundaries(x, y, line_dir, field)
             interception_x, interception_y = self.convert_to_local(interception_x, interception_y, x, y, w)
-            intercepts.append([interception_x, interception_y])
-            # intercepts.append(self.convert_xy_to_angles(interception_x, interception_y))
+            # intercepts.append([interception_x, interception_y])
+            intercepts.append(self.convert_xy_to_polar(interception_x, interception_y))
 
         return intercepts
-    
-    def convert_to_local(self, global_x, global_y, robot_x, robot_y, theta):
+
+    def detect_boundary_points_random(self, x, y, w, field):
+        intercepts = []
+        self.set_detection_angles_random(self.vertical_lines_nr)
+        for angle in self.vertical_scan_angles:
+            line_dir = angle + w
+            line_dir = ((line_dir + 180) % 360) - 180
+            interception_x, interception_y = self.intercept_field_boundaries(x, y, line_dir, field)
+            interception_x, interception_y = self.convert_to_local(interception_x, interception_y, x, y, w)
+            # intercepts.append([interception_x, interception_y])
+            intercepts.append(self.convert_xy_to_polar(interception_x, interception_y))
+
+        return intercepts
+
+
+    def convert_to_local(self, global_x, global_y, robot_x, robot_y, robot_w):
         x = global_x - robot_x
         y = global_y - robot_y
-        theta = math.radians(theta)
-        x, y = x*np.cos(theta) + y*np.sin(theta),\
-            -x*np.sin(theta) + y*np.cos(theta)
+        robot_w = math.radians(robot_w)
+        x, y = x*np.cos(robot_w) + y*np.sin(robot_w),\
+            -x*np.sin(robot_w) + y*np.cos(robot_w)
 
         return x, y
 
@@ -189,9 +227,11 @@ if __name__ == "__main__":
         
     env.field.boundary_width = 0.3
 
-    vision = SSLEmbeddedVision(vertical_lines_nr=6)
+    robot_x, robot_y, robot_w = 0, 0, 0
+
+    vision = SSLEmbeddedVision(vertical_lines_nr=1)
     
-    boundary_points = vision.detect_boundary_points(0, 0, 0, env.field)
+    boundary_points = vision.detect_boundary_points(robot_x, robot_y, robot_w, env.field)
     for point in boundary_points:
         print(point)
     # import pdb;pdb.set_trace()

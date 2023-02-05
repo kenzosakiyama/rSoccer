@@ -19,7 +19,7 @@ class Particle:
     '''
     def __init__(
                 self,
-                initial_state = [0,0,0],
+                initial_state = [0, 0, 0],
                 weight = 1
                 ):
         self.state = initial_state
@@ -56,7 +56,7 @@ class Particle:
 
     def add_move_noise(self, movement):
         movement_abs = [np.abs(movement[0]), np.abs(movement[1]), np.abs(movement[2])]
-        standard_deviation_vector = [1, 1, 1]*np.array(movement_abs)
+        standard_deviation_vector = [1, 1, 2]*np.array(movement_abs)
 
         return np.random.normal(movement, standard_deviation_vector, 3).tolist()
 
@@ -278,16 +278,12 @@ class ParticleFilter:
             # Loop over all observations for current particle
             for diff in differences:
                 # Map difference true and expected angle measurement to probability
-                p_z_given_x = \
+                p_z_given_distance = \
                     np.exp(-(diff[0]) * (diff[0]) /
                         (2 * self.measurement_noise[0] * self.measurement_noise[0]))
 
-                p_z_given_y = \
-                    np.exp(-(diff[1]) * (diff[1]) /
-                        (2 * self.measurement_noise[1] * self.measurement_noise[1]))
-
                 # Incorporate likelihoods current landmark
-                likelihood_sample *= p_z_given_x*p_z_given_y
+                likelihood_sample *= p_z_given_distance
                 if likelihood_sample<1e-15:
                     return 0
 
@@ -323,6 +319,7 @@ class ParticleFilter:
         """
 
         weights = []
+        self.vision.set_detection_angles_from_list([measurements[0][1]])
         for particle in self.particles:
             # Compute current particle's weight based on likelihood
             weight = particle.weight * self.compute_likelihood(measurements, particle)
