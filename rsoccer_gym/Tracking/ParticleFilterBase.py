@@ -221,7 +221,7 @@ class ParticleFilter:
 
         # Check if weights are non-zero
         if self.sum_weights < 1e-15:
-            print("Weight normalization failed: sum of all weights is {} (weights will be reinitialized)".format(sum_weights))
+            print("Weight normalization failed: sum of all weights is {} (weights will be reinitialized)".format(self.sum_weights))
 
             # Set uniform weights
             return [(1.0 / len(weights)) for i in weights]
@@ -291,10 +291,17 @@ class ParticleFilter:
             # Return importance weight based on all landmarks
             return likelihood_sample
 
-    def needs_resampling(self):
+    def needs_resampling(self, measurements):
         '''
         TODO: implement method for checking if resampling is needed
         '''
+
+        # computes average for evaluating current state
+        avg_particle = Particle(self.get_average_state(), 1)
+        weight = self.compute_likelihood(measurements, avg_particle)
+        if weight<0.5:
+            return True
+
         distance = math.sqrt(self.displacement[0]**2 + self.displacement[1]**2)
         dtheta = self.displacement[2]
         if distance>1:
@@ -336,7 +343,7 @@ class ParticleFilter:
             self.particles[i].weight = weights[i]
 
         # Resample if needed
-        if self.needs_resampling():
+        if self.needs_resampling(measurements):
             self.displacement = [0, 0, 0]
             samples = self.resampler.resample(
                             self.particles_as_weigthed_samples(), 
