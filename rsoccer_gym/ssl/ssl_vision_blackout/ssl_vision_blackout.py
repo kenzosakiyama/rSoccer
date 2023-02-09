@@ -85,6 +85,9 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
 
     def update_step(self, step):
         self.steps = step
+    
+    def update_time_step(self, time_step):
+        self.time_step = time_step
 
     def _render_particles(self):
         for i in range(self.n_particles):
