@@ -218,7 +218,6 @@ class Resampler:
             delta = np.array([0.2, 0.2, 30])
             new_sample = samples[m][1] + (1-samples[m][0])*delta*rnd
             weight = samples[m][0]
-            # new_sample = copy.deepcopy(samples[m][1])
             new_samples.append([weight, new_sample])
 
             # Added another sample

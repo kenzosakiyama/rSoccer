@@ -299,6 +299,9 @@ class ParticleFilter:
         # computes average for evaluating current state
         avg_particle = Particle(self.get_average_state(), 1)
         weight = self.compute_likelihood(measurements, avg_particle)
+        if self.sum_weights>0.4*self.n_particles:
+            print("Robot localization was found")
+            # import pdb;pdb.set_trace()
         if weight<0.5:
             return True
 
@@ -310,9 +313,6 @@ class ParticleFilter:
         for particle in self.particles:
             if particle.weight>0.9:
                 return True
-
-        # if self.n_active_particles < int(0.5*self.n_particles):
-        #     return True
 
         else: return False
 
