@@ -34,16 +34,20 @@ class Particle:
     def as_weighted_sample(self):
         return [self.weight,[self.x, self.y, self.theta]]
 
-    def is_out_of_field(self, x_max, y_max):
+    def is_out_of_field(self, x_min, x_max, y_min, y_max):
         '''
         Check if particle is out of field boundaries
         
         param: current field configurations
         return: True if particle is out of field boundaries
         '''
-        if np.abs(self.x) > x_max:
+        if self.x < x_min:
             return True
-        elif np.abs(self.y) > y_max:
+        elif self.x > x_max:
+            return True
+        elif self.y < y_min:
+            return True
+        elif self.y > y_max:
             return True
         else:
             return False
@@ -167,7 +171,7 @@ class ParticleFilter:
         for i in range(self.n_particles):
             initial_state = np.random.normal(mean_vector, standard_deviation_vector, self.state_dimension).tolist()
             particle = Particle(initial_state=initial_state, weight=weight)
-            while particle.is_out_of_field(x_max=self.x_max, y_max=self.y_max):
+            while particle.is_out_of_field(x_min=self.x_min, x_max=self.x_max, y_min=self.y_min, y_max=self.y_max):
                 # Get state sample
                 initial_state = np.random.normal(mean_vector, standard_deviation_vector, self.state_dimension).tolist()
                 particle = Particle(initial_state=initial_state, weight=weight)
@@ -249,7 +253,7 @@ class ParticleFilter:
         for particle in self.particles:
             particle.move(movement)
 
-            if particle.is_out_of_field(x_max=self.x_max, y_max=self.y_max):
+            if particle.is_out_of_field(x_min=self.x_min, x_max=self.x_max, y_min=self.y_min, y_max=self.y_max):
                 # print("Particle Out of Field Boundaries")
                 particle.weight = 0
 
@@ -271,7 +275,7 @@ class ParticleFilter:
         :return Likelihood
         """
         # Check if particle is out of field boundaries
-        if particle.is_out_of_field(x_max=self.x_max, y_max=self.y_max):
+        if particle.is_out_of_field(x_min=self.x_min, x_max=self.x_max, y_min=self.y_min, y_max=self.y_max):
             return 0
         elif len(measurements)<1:
             return 1        

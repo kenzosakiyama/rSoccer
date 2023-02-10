@@ -112,15 +112,15 @@ if __name__ == "__main__":
         #     import pdb;pdb.set_trace()
         #     env.update_step(0)
         #     counter += 1
-            # Add x and y to lists
+        # Add x and y to lists
         xs.append(env.steps)
         ys.append(robot_w)
 
-        # # Limit x and y lists to 20 items
+        # Limit x and y lists to 20 items
         xs = xs[-20:]
         ys = ys[-20:]
 
-        #     # Draw x and y lists
+        # Draw x and y lists
         ax.clear()
         ax.plot(xs, ys)
 

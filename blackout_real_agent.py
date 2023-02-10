@@ -91,7 +91,7 @@ if __name__ == "__main__":
                                     vertical_lines_nr=vertical_lines_nr,
                                     resampling_algorithm=ResamplingAlgorithms.SYSTEMATIC)
     # robot_tracker.initialize_particles_uniform() 
-    # robot_tracker.set_field_dimensions()
+    robot_tracker.set_field_dimensions(x_min=-0.2, x_max=4.3, y_min=-3, y_max=3)
     robot_tracker.initialize_particles_from_seed_position(seed_x, seed_y, seed_radius)
 
     # movements list
@@ -116,7 +116,7 @@ if __name__ == "__main__":
         particles_filter_tracking = robot_tracker.get_average_state()         
         env.update_particles(robot_tracker.particles, odometry_tracking, particles_filter_tracking)
         env.render()
-        time.sleep(time_steps[env.steps]/1000)
+        time.sleep(time_steps[env.steps])
         if counter<0:
             env.update_step(0)
             counter += 1
