@@ -90,12 +90,7 @@ if __name__ == "__main__":
 
     counter = 0
 
-    fig = plt.figure()
-    ax = fig.add_subplot()
-    xs = []
-    ys = []
-    # while env.steps<len(vision):
-    def animate(i, xs, ys):
+    while env.steps<len(vision):
         robot_x, robot_y, robot_w = odometry[env.steps]
         action = vision[env.steps]
         measurements, _, _, _ = env.step(action)
@@ -112,18 +107,3 @@ if __name__ == "__main__":
         #     import pdb;pdb.set_trace()
         #     env.update_step(0)
         #     counter += 1
-        # Add x and y to lists
-        xs.append(env.steps)
-        ys.append(robot_w)
-
-        # Limit x and y lists to 20 items
-        xs = xs[-20:]
-        ys = ys[-20:]
-
-        # Draw x and y lists
-        ax.clear()
-        ax.plot(xs, ys)
-
-    # Set up plot to call animate() function periodically
-    ani = animation.FuncAnimation(fig, animate, fargs=(xs, ys), interval=100)
-    plt.show()
