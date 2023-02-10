@@ -1,7 +1,7 @@
 from cmath import cos
 import numpy as np
 import math
-from rsoccer_gym.Perception.Vision import SSLEmbeddedVision
+from rsoccer_gym.Perception.ParticleVision import SSLEmbeddedVision
 from rsoccer_gym.Tracking.Resampler import Resampler
 
 class Particle:
@@ -175,6 +175,12 @@ class ParticleFilter:
             # Add particle i
             self.particles.append(particle)
 
+    def set_field_dimensions(self, x_min, x_max, y_min, y_max):
+        self.x_min = x_min
+        self.x_max = x_max
+        self.y_min = y_min
+        self.y_max = y_max
+
     def particles_as_weigthed_samples(self):
         samples = []
         for particle in self.particles:
@@ -267,10 +273,12 @@ class ParticleFilter:
         # Check if particle is out of field boundaries
         if particle.is_out_of_field(x_max=self.x_max, y_max=self.y_max):
             return 0
-        
+        elif len(measurements)<1:
+            return 1        
         else:
             # Initialize measurement likelihood
             likelihood_sample = 1.0
+            sigma = 6
             
             # Compute particle observations
             observations = self.compute_observation(particle)
@@ -280,8 +288,8 @@ class ParticleFilter:
             for diff in differences:
                 # Map difference true and expected angle measurement to probability
                 p_z_given_distance = \
-                    np.exp(-(diff[0]) * (diff[0]) /
-                        (2 * self.measurement_noise[0] * self.measurement_noise[0]))
+                    np.exp(-sigma * (diff[0]) * (diff[0]) /
+                        (measurements[0][0] * measurements[0][0]))
 
                 # Incorporate likelihoods current landmark
                 likelihood_sample *= p_z_given_distance
@@ -327,12 +335,13 @@ class ParticleFilter:
         """
 
         weights = []
-        self.vision.set_detection_angles_from_list([measurements[0][1]])
+        if len(measurements)>0:
+            self.vision.set_detection_angles_from_list([measurements[0][1]])
         for particle in self.particles:
             # Compute current particle's weight based on likelihood
             weight = particle.weight * self.compute_likelihood(measurements, particle)
             # Store weight for normalization
-            weights.append(weight)
+            weights.append(weight)           
 
         # Update to normalized weights
         weights = self.normalize_weights(weights)

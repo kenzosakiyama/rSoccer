@@ -2,6 +2,8 @@ import gym
 import numpy as np
 from rsoccer_gym.Tracking.ParticleFilterBase import ParticleFilter
 from rsoccer_gym.Tracking import ResamplingAlgorithms
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 def set_robot_speed(env, vx, vy, vw):
     action = env.action_space.sample()
@@ -88,7 +90,12 @@ if __name__ == "__main__":
 
     counter = 0
 
+    fig = plt.figure()
+    ax = fig.add_subplot()
+    xs = []
+    # ys = []
     while env.steps<len(vision):
+    # def animate(i, xs, ys):
         robot_x, robot_y, robot_w = odometry[env.steps]
         action = vision[env.steps]
         measurements, _, _, _ = env.step(action)
@@ -101,6 +108,22 @@ if __name__ == "__main__":
         particles_filter_tracking = robot_tracker.get_average_state()         
         env.update_particles(robot_tracker.particles, odometry_tracking, particles_filter_tracking)
         env.render()
-        if counter<100:
-            env.update_step(0)
-            counter += 1
+        # if counter<1:
+        #     import pdb;pdb.set_trace()
+        #     env.update_step(0)
+        #     counter += 1
+            # Add x and y to lists
+        # xs.append(env.steps)
+        # ys.append(robot_w)
+
+        # # Limit x and y lists to 20 items
+        # xs = xs[-20:]
+        # ys = ys[-20:]
+
+        #     # Draw x and y lists
+        # ax.clear()
+        # ax.plot(xs, ys)
+
+    # Set up plot to call animate() function periodically
+    ani = animation.FuncAnimation(fig, animate, fargs=(xs, ys), interval=100)
+    plt.show()

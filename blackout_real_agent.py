@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+import cv2
 from rsoccer_gym.Tracking.ParticleFilterBase import ParticleFilter
 from rsoccer_gym.Tracking import ResamplingAlgorithms
 
@@ -41,9 +42,15 @@ def split_actions_list(vision_movements, env):
         actions.append(action)
     return actions
 
+def get_image_from_frame_nr(path_to_images_folder, frame_nr):
+    dir = path_to_images_folder+f'/{frame_nr}.jpg'
+    img = cv2.imread(dir)
+    return img
+
 if __name__ == "__main__":
     import os
     from rsoccer_gym.Utils.load_localization_data import Read
+    import time
     cwd = os.getcwd()
 
     n_particles = 50
@@ -51,10 +58,12 @@ if __name__ == "__main__":
 
     # LOAD REAL ODOMETRY DATA
     quadrado_nr = 15
-    path = cwd+f'/localization_data/quadrado{quadrado_nr}/log.csv'
-    data = Read(path)
+    path = cwd+f'/localization_data/quadrado{quadrado_nr}'
+    path_to_log = path+'/log.csv'
+    data = Read(path_to_log)
     time_step_ms =  data.get_timesteps_average()
     time_steps = data.get_timesteps()
+    frames = data.get_frames()
 
     # LOAD POSITION DATA
     position = data.get_position()
@@ -70,17 +79,19 @@ if __name__ == "__main__":
                 vertical_lines_nr = vertical_lines_nr, 
                 n_particles = n_particles,
                 initial_position = initial_position,
-                time_step=time_step_ms)
+                time_step=time_step_ms,
+                using_vision_frames = True)
     env.reset()
 
     robot_tracker = ParticleFilter(
-                                    number_of_particles=n_particles, 
+                                    number_of_particles=150, 
                                     field=env.field,
                                     process_noise=[1, 1, 1],
                                     measurement_noise=[1, 1],
                                     vertical_lines_nr=vertical_lines_nr,
                                     resampling_algorithm=ResamplingAlgorithms.SYSTEMATIC)
-    # robot_tracker.initialize_particles_uniform()
+    # robot_tracker.initialize_particles_uniform() 
+    # robot_tracker.set_field_dimensions()
     robot_tracker.initialize_particles_from_seed_position(seed_x, seed_y, seed_radius)
 
     # movements list
@@ -91,6 +102,8 @@ if __name__ == "__main__":
 
     while env.steps<len(position):
         env.update_time_step(time_steps[env.steps])
+        img = get_image_from_frame_nr(path, frames[env.steps])
+        env.update_img(img)
         robot_x, robot_y, robot_w = odometry[env.steps]
         action = position[env.steps]
         measurements, _, _, _ = env.step(action)
@@ -103,6 +116,7 @@ if __name__ == "__main__":
         particles_filter_tracking = robot_tracker.get_average_state()         
         env.update_particles(robot_tracker.particles, odometry_tracking, particles_filter_tracking)
         env.render()
+        time.sleep(time_steps[env.steps]/1000)
         if counter<0:
             env.update_step(0)
             counter += 1

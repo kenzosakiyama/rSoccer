@@ -2,12 +2,14 @@ import random
 
 import gym
 import numpy as np
+import time
 from rsoccer_gym.Entities import Frame, Robot, Ball
 from rsoccer_gym.ssl.ssl_gym_base import SSLBaseEnv
 from rsoccer_gym.Utils import KDTree
-from rsoccer_gym.Perception.Vision import Camera, SSLEmbeddedVision
+from rsoccer_gym.Perception.ParticleVision import Camera, SSLEmbeddedVision
 from rsoccer_gym.Perception.Odometry import Odometry
 from rsoccer_gym.Tracking.ParticleFilterBase import Particle
+from rsoccer_gym.Perception.jetson_vision import JetsonVision
 
 class SSLVisionBlackoutEnv(SSLBaseEnv):
     """
@@ -41,7 +43,7 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
             Pose confidence is higher than threshold or 30 seconds (1200 steps)
     """
 
-    def __init__(self, initial_position=[], time_step=0.005, field_type=1, vertical_lines_nr=1, n_particles=0):
+    def __init__(self, initial_position=[], time_step=0.005, field_type=1, vertical_lines_nr=1, n_particles=0, using_vision_frames=False):
         super().__init__(field_type=field_type, 
                         n_robots_blue=1, 
                         n_robots_yellow=0, 
@@ -49,18 +51,29 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
                         time_step=time_step)
         
         self.field.boundary_width = 0.3
-        self.embedded_vision = SSLEmbeddedVision(vertical_lines_nr=vertical_lines_nr)
-
+        
         self.odometry = Odometry()
         self.particles = {}
         self.trackers = {}
 
         # LOADS VISION POSITION DATA
+        self.using_vision_frames = False
         if len(initial_position)>0:
             self.initial_position =  initial_position
             self.using_log_data = True
+            self.using_vision_frames = using_vision_frames
         else:
             self.using_log_data = False
+
+        if self.using_vision_frames:
+            self.embedded_vision = JetsonVision(
+                                    vertical_lines_nr=vertical_lines_nr, 
+                                    enable_field_detection=True,
+                                    enable_randomized_observations=True)
+            self.embedded_vision.jetson_cam.setPoseFrom3DModel(171, 106.07)
+            self.img = np.zeros((480, 640, 3), dtype=np.uint8)
+        else:
+            self.embedded_vision = SSLEmbeddedVision(vertical_lines_nr=vertical_lines_nr)
 
 
         self.action_space = gym.spaces.Box(low=-1, high=1,
@@ -89,6 +102,9 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
     def update_time_step(self, time_step):
         self.time_step = time_step
 
+    def update_img(self, img):
+        self.img = img
+
     def _render_particles(self):
         for i in range(self.n_particles):
             self.frame.particles[i] = self.particles[i]
@@ -108,14 +124,23 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
         observation.append(movement[1])
         observation.append(movement[2])
         
-        boundary_points = self.embedded_vision.detect_boundary_points_random(
-                            self.frame.robots_blue[0].x, 
-                            self.frame.robots_blue[0].y,
-                            self.frame.robots_blue[0].theta, 
-                            self.field)
-        for point in boundary_points:
-            observation.append(point[0])
-            observation.append(point[1])
+        if self.using_vision_frames:
+            # import pdb;pdb.set_trace()
+            _, _, _, _, particle_filter_observations = self.embedded_vision.process(self.img, timestamp=time.time())
+            boundary_ground_points, line_ground_points = particle_filter_observations
+            for point in boundary_ground_points:
+                point = self.embedded_vision.jetson_cam.xyToPolarCoordinates(point[0], point[1])
+                observation.append(point[0])
+                observation.append(point[1])
+        else:
+            boundary_points = self.embedded_vision.detect_boundary_points_random(
+                                self.frame.robots_blue[0].x, 
+                                self.frame.robots_blue[0].y,
+                                self.frame.robots_blue[0].theta, 
+                                self.field)
+            for point in boundary_points:
+                observation.append(point[0])
+                observation.append(point[1])
 
         return np.array(observation, dtype=np.float32)
 
