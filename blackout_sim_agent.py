@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+import time
 from rsoccer_gym.Tracking.ParticleFilterBase import ParticleFilter
 from rsoccer_gym.Tracking import ResamplingAlgorithms
 import matplotlib.pyplot as plt
@@ -61,7 +62,7 @@ def balaka(xs, ys):
         y = ys.get()
         list_x.append(x)
         list_y.append(y)
-        #     # Draw x and y lists
+        # Draw x and y lists
         ax.clear()
         ax.plot(list_x, list_y)
         list_x = list_x[-20:]
@@ -69,7 +70,7 @@ def balaka(xs, ys):
 
     big_x = []
     big_y = []
-    _ = animation.FuncAnimation(fig, balakinha, fargs=(big_x, big_y),interval=100)
+    _ = animation.FuncAnimation(fig, balakinha, fargs=(big_x, big_y),interval=33)
     plt.show()
 
 
@@ -142,6 +143,7 @@ if __name__ == "__main__":
             robot_tracker.particles, odometry_tracking, particles_filter_tracking
         )
         env.render()
+        time.sleep(env.time_step)
 
         xs.put(env.steps)
         ys.put(robot_w)

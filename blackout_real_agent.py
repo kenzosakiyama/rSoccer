@@ -84,7 +84,7 @@ if __name__ == "__main__":
     env.reset()
 
     robot_tracker = ParticleFilter(
-                                    number_of_particles=50, 
+                                    number_of_particles=n_particles, 
                                     field=env.field,
                                     process_noise=[1, 1, 1],
                                     measurement_noise=[1, 1],
@@ -92,6 +92,7 @@ if __name__ == "__main__":
                                     using_real_field=env.using_vision_frames,
                                     resampling_algorithm=ResamplingAlgorithms.SYSTEMATIC)
     robot_tracker.initialize_particles_from_seed_position(seed_x, seed_y, seed_radius)
+    #robot_tracker.initialize_particles_uniform()
 
     # movements list
     odometry = data.get_odometry()
@@ -116,6 +117,6 @@ if __name__ == "__main__":
         env.update_particles(robot_tracker.particles, odometry_tracking, particles_filter_tracking)
         env.render()
         time.sleep(time_steps[env.steps])
-        if counter<0:
+        if counter<100:
             env.update_step(0)
             counter += 1

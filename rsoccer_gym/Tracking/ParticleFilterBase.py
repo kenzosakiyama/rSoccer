@@ -143,7 +143,7 @@ class ParticleFilter:
                     np.random.uniform(self.x_min, self.x_max),
                     np.random.uniform(self.y_min, self.y_max),
                     np.random.uniform(-180, 180)],
-                weight=weight)
+                    weight=weight)
 
             particles.append(particle)
         
