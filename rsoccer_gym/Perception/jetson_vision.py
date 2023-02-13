@@ -71,6 +71,7 @@ class JetsonVision():
         self.enable_randomized_observations = enable_randomized_observations
         
         self.field = Field()
+        self.field.redefineFieldLimits(x_max=4.2, y_max=3, x_min=-0.3, y_min=-3)
         self.current_frame = Frame()
         self.tracked_ball = Ball()
         self.tracked_goal = Goal()

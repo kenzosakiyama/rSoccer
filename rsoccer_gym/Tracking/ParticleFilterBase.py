@@ -3,6 +3,8 @@ import numpy as np
 import math
 from rsoccer_gym.Perception.ParticleVision import SSLEmbeddedVision
 from rsoccer_gym.Tracking.Resampler import Resampler
+from rsoccer_gym.Perception.entities import Field
+
 
 class Particle:
     '''
@@ -60,7 +62,7 @@ class Particle:
 
     def add_move_noise(self, movement):
         movement_abs = [np.abs(movement[0]), np.abs(movement[1]), np.abs(movement[2])]
-        standard_deviation_vector = [1, 1, 2]*np.array(movement_abs)
+        standard_deviation_vector = [1, 1, 0.5]*np.array(movement_abs)
 
         return np.random.normal(movement, standard_deviation_vector, 3).tolist()
 
@@ -80,7 +82,8 @@ class ParticleFilter:
                 process_noise,
                 measurement_noise,
                 vertical_lines_nr,
-                resampling_algorithm
+                resampling_algorithm,
+                using_real_field
                 ):
 
         if number_of_particles < 1:
@@ -94,11 +97,7 @@ class ParticleFilter:
 
         # State related settings
         self.state_dimension = len(Particle().state)
-        self.x_max = field.length/2 + field.boundary_width
-        self.x_min = -self.x_max
-        self.y_max = field.width/2 + field.boundary_width
-        self.y_min = -self.y_max
-        self.field = field
+        self.set_field_limits(field)
 
         # Particle sensors
         self.vision = SSLEmbeddedVision(vertical_lines_nr=vertical_lines_nr)
@@ -179,11 +178,12 @@ class ParticleFilter:
             # Add particle i
             self.particles.append(particle)
 
-    def set_field_dimensions(self, x_min, x_max, y_min, y_max):
-        self.x_min = x_min
-        self.x_max = x_max
-        self.y_min = y_min
-        self.y_max = y_max
+    def set_field_limits(self, field):
+        self.field = field
+        self.x_min = field.x_min
+        self.x_max = field.x_max
+        self.y_min = field.y_min
+        self.y_max = field.y_max
 
     def particles_as_weigthed_samples(self):
         samples = []
@@ -282,7 +282,7 @@ class ParticleFilter:
         else:
             # Initialize measurement likelihood
             likelihood_sample = 1.0
-            sigma = 6
+            sigma = 5
             
             # Compute particle observations
             observations = self.compute_observation(particle)

@@ -108,24 +108,24 @@ class SSLEmbeddedVision:
         intercept = y - coef*x
         return coef, intercept
 
-    def intercept_upper_boundary(self, a, b, field):
-        y = field.width/2 + field.boundary_width
-        x = (y-b)/a
+    def intercept_left_boundary(self, a, b, field):
+        x = field.x_min
+        y = a*x + b
         return x, y
 
-    def intercept_left_boundary(self, a, b, field):
-        x = -field.length/2 - field.boundary_width
+    def intercept_right_boundary(self, a, b, field):
+        x = field.x_max
         y = a*x + b
         return x, y
 
     def intercept_lower_boundary(self, a, b, field):
-        y = -field.width/2 - field.boundary_width
+        y = field.y_min
         x = (y-b)/a
         return x, y
 
-    def intercept_right_boundary(self, a, b, field):
-        x = field.length/2 + field.boundary_width
-        y = a*x + b
+    def intercept_upper_boundary(self, a, b, field):
+        y = field.y_max
+        x = (y-b)/a
         return x, y
 
     def get_distance(self, x1, y1, x2, y2):

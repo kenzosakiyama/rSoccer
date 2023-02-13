@@ -11,6 +11,7 @@ from rsoccer_gym.Perception.Odometry import Odometry
 from rsoccer_gym.Tracking.ParticleFilterBase import Particle
 from rsoccer_gym.Perception.jetson_vision import JetsonVision
 
+
 class SSLVisionBlackoutEnv(SSLBaseEnv):
     """
         The SSL robot needs localize itself inside the field using Adaptive Monte Localization
@@ -70,11 +71,12 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
                                     vertical_lines_nr=vertical_lines_nr, 
                                     enable_field_detection=True,
                                     enable_randomized_observations=True)
-            self.embedded_vision.jetson_cam.setPoseFrom3DModel(171, 106.07)
+            self.embedded_vision.jetson_cam.setPoseFrom3DModel(170, 106.7)
             self.img = np.zeros((480, 640, 3), dtype=np.uint8)
         else:
             self.embedded_vision = SSLEmbeddedVision(vertical_lines_nr=vertical_lines_nr)
 
+        self.set_field_limits(self.field, self.using_vision_frames)
 
         self.action_space = gym.spaces.Box(low=-1, high=1,
                                            shape=(3, ), dtype=np.float32)
@@ -90,6 +92,18 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
         self.max_w = 10
 
         print('Environment initialized')
+
+    def set_field_limits(self, field, using_real_field = False):
+        if using_real_field:
+            self.field.x_min = -0.3
+            self.field.x_max = 4.2
+            self.field.y_min = -3
+            self.field.y_max = 3
+        else:
+            self.field.x_min = -(field.length/2+field.boundary_width)
+            self.field.x_max = (field.length/2+field.boundary_width)
+            self.field.y_min = -(field.width/2+field.boundary_width)
+            self.field.y_max = (field.width/2+field.boundary_width)        
 
     def update_particles(self, particles, odometry_tracking, particle_filter_tracking):
         self.particles = particles

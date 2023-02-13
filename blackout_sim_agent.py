@@ -97,26 +97,24 @@ if __name__ == "__main__":
     initial_position[2] = np.degrees(initial_position[2])
 
     # Using VSS Single Agent env
-    env = gym.make(
-        "SSLVisionBlackout-v0",
-        vertical_lines_nr=vertical_lines_nr,
-        n_particles=n_particles,
-        initial_position=initial_position,
-        time_step=0.033,
-    )
+    env = gym.make('SSLVisionBlackout-v0', 
+                vertical_lines_nr = vertical_lines_nr, 
+                n_particles = n_particles,
+                initial_position = initial_position,
+                time_step=0.033,
+                using_vision_frames = False)
     env.reset()
 
     robot_tracker = ParticleFilter(
-        number_of_particles=n_particles,
-        field=env.field,
-        process_noise=[1, 1, 1],
-        measurement_noise=[1, 1],
-        vertical_lines_nr=vertical_lines_nr,
-        resampling_algorithm=ResamplingAlgorithms.SYSTEMATIC,
-    )
+                                    number_of_particles=n_particles, 
+                                    field=env.field,
+                                    process_noise=[1, 1, 1],
+                                    measurement_noise=[1, 1],
+                                    vertical_lines_nr=vertical_lines_nr,
+                                    using_real_field = env.using_vision_frames,
+                                    resampling_algorithm=ResamplingAlgorithms.SYSTEMATIC)
     # robot_tracker.initialize_particles_uniform()
     robot_tracker.initialize_particles_from_seed_position(seed_x, seed_y, seed_radius)
-
     # movements list
     odometry = data.get_odometry()
     vision_movements = data.get_vision_movement(degrees=True)

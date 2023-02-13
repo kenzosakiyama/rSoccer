@@ -215,7 +215,7 @@ class Resampler:
             # standard_deviation_vector = [0.2*(1-samples[m][0]), 0.2*(1-samples[m][0]), 30*(1-samples[m][0])]
             # new_sample = np.random.normal(samples[m][1], standard_deviation_vector, 3).tolist()
             rnd = np.random.uniform(-1, 1, 3)
-            delta = np.array([0.2, 0.2, 30])
+            delta = np.array([0.2, 0.2, 15])
             new_sample = samples[m][1] + (1-samples[m][0])*delta*rnd
             weight = samples[m][0]
             new_samples.append([weight, new_sample])

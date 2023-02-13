@@ -84,14 +84,13 @@ if __name__ == "__main__":
     env.reset()
 
     robot_tracker = ParticleFilter(
-                                    number_of_particles=150, 
+                                    number_of_particles=50, 
                                     field=env.field,
                                     process_noise=[1, 1, 1],
                                     measurement_noise=[1, 1],
                                     vertical_lines_nr=vertical_lines_nr,
+                                    using_real_field=env.using_vision_frames,
                                     resampling_algorithm=ResamplingAlgorithms.SYSTEMATIC)
-    # robot_tracker.initialize_particles_uniform() 
-    robot_tracker.set_field_dimensions(x_min=-0.2, x_max=4.3, y_min=-3, y_max=3)
     robot_tracker.initialize_particles_from_seed_position(seed_x, seed_y, seed_radius)
 
     # movements list
