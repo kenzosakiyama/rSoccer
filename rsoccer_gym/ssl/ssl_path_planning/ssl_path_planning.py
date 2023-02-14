@@ -11,7 +11,8 @@ from rsoccer_gym.Utils import KDTree
 
 
 ANGLE_TOLERANCE: float = np.deg2rad(7.5)
-
+ALPHA_V: float = 0.5
+SPEED_TOLERANCE: float = 0.01 # m/s == 1 cm/s
 
 class SSLPathPlanningEnv(SSLBaseEnv):
     """The SSL robot needs to reach the target point with a given angle"""
@@ -23,7 +24,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         self.action_space = gym.spaces.Box(low=-1, high=1,  # hyp tg.
                                            shape=(4, ), dtype=np.float32)
 
-        n_obs = 4 + 4 + 7*self.n_robots_blue + 2*self.n_robots_yellow
+        n_obs = 5 + 4 + 7*self.n_robots_blue + 2*self.n_robots_yellow
         self.observation_space = gym.spaces.Box(low=-self.NORM_BOUNDS,
                                                 high=self.NORM_BOUNDS,
                                                 shape=(n_obs, ),
@@ -34,6 +35,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         self.max_w = 10
 
         self.target_point: Point2D = Point2D(0, 0)
+        self.target_speed: float = 0.0
         self.target_angle: float = 0.0
 
         print('Environment initialized')
@@ -45,6 +47,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         observation.append(self.norm_pos(self.target_point.y))
         observation.append(np.sin(self.target_angle))
         observation.append(np.cos(self.target_angle))
+        observation.append(self.norm_v(self.target_speed))
 
         observation.append(self.norm_pos(self.frame.ball.x))
         observation.append(self.norm_pos(self.frame.ball.y))
@@ -102,16 +105,21 @@ class SSLPathPlanningEnv(SSLBaseEnv):
                 v_theta=result.angular_velocity
             )
         ]
+    
+    def is_v_in_range(self, current, target) -> bool:
+        return -SPEED_TOLERANCE <= current - target <= SPEED_TOLERANCE
 
-    def reward_function(self, robot_pos: Point2D, last_robot_pos: Point2D, robot_vel: Point2D, robot_angle: float, target_pos: Point2D, target_angle: float):
+    def reward_function(self, robot_pos: Point2D, last_robot_pos: Point2D, robot_vel: Point2D, robot_angle: float, target_pos: Point2D, target_speed: float, target_angle: float):
         max_dist = np.sqrt(self.field.length ** 2 + self.field.width ** 2)
 
         last_dist_robot_to_target = dist_to(target_pos, last_robot_pos)
         dist_robot_to_target = dist_to(target_pos, robot_pos)
 
+        robot_speed = length(robot_vel)
+
         if dist_robot_to_target < 0.2:
-            if abs_smallest_angle_diff(robot_angle, target_angle) < ANGLE_TOLERANCE and length(robot_vel) < 0.1:
-                return 0.0, True
+            if abs_smallest_angle_diff(robot_angle, target_angle) < ANGLE_TOLERANCE:
+                return ALPHA_V*self.is_v_in_range(robot_speed, target_speed), True
             return 0.0, False
         return (last_dist_robot_to_target - dist_robot_to_target) / max_dist, False
 
@@ -123,6 +131,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         last_robot_pos = Point2D(x=last_robot.x, y=last_robot.y)
         robot_angle = np.deg2rad(robot.theta)
         target_pos = self.target_point
+        target_speed = self.target_speed
         target_angle = self.target_angle
 
         robot_vel = Point2D(x=robot.v_x, y=robot.v_y)
@@ -132,6 +141,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
                                             robot_vel=robot_vel,
                                             robot_angle=robot_angle,
                                             target_pos=target_pos,
+                                            target_speed=target_speed,
                                             target_angle=target_angle)
         return reward, done
 
@@ -146,6 +156,9 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         def get_random_y():
             return random.uniform(-field_half_width + 0.1,
                                   field_half_width - 0.1)
+        
+        def get_random_speed():
+            return random.uniform(0, self.max_v)
 
         def get_random_theta():
             return random.uniform(0, 360)
@@ -155,6 +168,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         pos_frame.ball = Ball(x=get_random_x(), y=get_random_y())
 
         self.target_point = Point2D(x=get_random_x(), y=get_random_y())
+        self.target_speed = get_random_speed()
         self.target_angle = np.deg2rad(get_random_theta())
 
         #  TODO: Move RCGymRender to another place
