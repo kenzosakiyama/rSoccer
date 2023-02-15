@@ -11,8 +11,9 @@ from rsoccer_gym.Utils import KDTree
 
 
 ANGLE_TOLERANCE: float = np.deg2rad(7.5)
-ALPHA_V: float = 0.5
-SPEED_TOLERANCE: float = 0.01 # m/s == 1 cm/s
+ALPHA_V: float = 0.3
+SPEED_TOLERANCE: float = 0.01  # m/s == 1 cm/s
+
 
 class SSLPathPlanningEnv(SSLBaseEnv):
     """The SSL robot needs to reach the target point with a given angle"""
@@ -105,7 +106,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
                 v_theta=result.angular_velocity
             )
         ]
-    
+
     def is_v_in_range(self, current, target) -> bool:
         return -SPEED_TOLERANCE <= current - target <= SPEED_TOLERANCE
 
@@ -117,11 +118,19 @@ class SSLPathPlanningEnv(SSLBaseEnv):
 
         robot_speed = length(robot_vel)
 
+        dist_rw = (last_dist_robot_to_target - dist_robot_to_target) / max_dist
+
+        last_robot_angle = np.deg2rad(self.last_frame.robots_blue[0].theta)
+
+        angle_dist_rw = (abs_smallest_angle_diff(last_robot_angle, target_angle) -
+                         abs_smallest_angle_diff(robot_angle, target_angle)) / np.pi
+
         if dist_robot_to_target < 0.2:
             if abs_smallest_angle_diff(robot_angle, target_angle) < ANGLE_TOLERANCE:
                 return ALPHA_V*self.is_v_in_range(robot_speed, target_speed), True
             return 0.0, False
-        return (last_dist_robot_to_target - dist_robot_to_target) / max_dist, False
+
+        return 0.7 * dist_rw + 0.3 * angle_dist_rw, False
 
     def _calculate_reward_and_done(self):
         robot = self.frame.robots_blue[0]
@@ -156,7 +165,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         def get_random_y():
             return random.uniform(-field_half_width + 0.1,
                                   field_half_width - 0.1)
-        
+
         def get_random_speed():
             return random.uniform(0, self.max_v)
 
