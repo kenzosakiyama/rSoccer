@@ -73,6 +73,8 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
                                     enable_randomized_observations=True)
             self.embedded_vision.jetson_cam.setPoseFrom3DModel(170, 106.7)
             self.img = np.zeros((480, 640, 3), dtype=np.uint8)
+            self.has_goal = False
+            self.goal_bbox = [0, 0, 0, 0]
         else:
             self.embedded_vision = SSLEmbeddedVision(vertical_lines_nr=vertical_lines_nr)
 
@@ -131,7 +133,10 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
         observation = []
         
         if self.using_vision_frames:
-            _, _, _, _, particle_filter_observations = self.embedded_vision.process(self.img, timestamp=time.time())
+            _, _, tracked_goal, _, particle_filter_observations = self.embedded_vision.process_from_log(src=self.img, 
+                                                                                            timestamp=time.time(), 
+                                                                                            has_goal=self.has_goal, 
+                                                                                            goal_bounding_box = self.goal_bbox)
             boundary_ground_points, line_ground_points = particle_filter_observations
             for point in boundary_ground_points:
                 point = self.embedded_vision.jetson_cam.xyToPolarCoordinates(point[0], point[1])

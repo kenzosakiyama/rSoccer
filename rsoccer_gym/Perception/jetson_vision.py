@@ -123,6 +123,9 @@ class JetsonVision():
 
         Labels are available at: ssl-detector/models/ssl_labels.txt
         """
+        if self.field_detector.isOutOfField(detection):
+            return
+
         class_id, score, xmin, xmax, ymin, ymax = detection
         if class_id == 1:
             ball = self.trackBall(score, xmin, xmax, ymin, ymax)
@@ -136,37 +139,66 @@ class JetsonVision():
         
     def detectAndTrackObjects(self, src):
         detections = self.object_detector.inference(src).detections
-        
         for detection in detections:
             self.updateObjectTracking(detection)
 
-    def detectAndTrackFieldPoints(self, src):
+    def detectObjects(self, src):
+        return self.object_detector.inference(src).detections
+
+    def trackObjects(self, detections):
+        for detection in detections:
+            self.updateObjectTracking(detection)
+
+    def detectAndTrackFieldPoints(self, src, detected_objects):
+        if self.enable_randomized_observations: 
+            self.field_detector.arrangeVerticalLinesRandom(img_width=src.shape[1], detections=detected_objects)
+
         if self.has_object_detection: # if running on jetson, use optimized version
             boundary_points, line_points = self.field_detector.detectFieldLinesAndBoundaryMerged(src)
         else:
             boundary_points, line_points = self.field_detector.detectFieldLinesAndBoundary(src)
         
-        boundary_ground_points = []
-        for point in boundary_points:
+        boundary_ground_points = self.trackGroundPoints(src, boundary_points)
+        
+        # not using field lines detection
+        #line_ground_points = self.trackGroundPoints(src, line_points)
+        line_ground_points = []
+        
+        return boundary_ground_points, line_ground_points
+
+    def detectFieldPoints(self, src, detected_objects):
+        if self.enable_randomized_observations: 
+            self.field_detector.arrangeVerticalLinesRandom(img_width=src.shape[1], detections=detected_objects)
+
+        if self.has_object_detection: # if running on jetson, use optimized version
+            boundary_points, line_points = self.field_detector.detectFieldLinesAndBoundaryMerged(src)
+        else:
+            boundary_points, line_points = self.field_detector.detectFieldLinesAndBoundary(src)
+        
+        self.field_detector.updateMask(boundary_points)
+        return boundary_points, line_points
+    
+    def trackFieldPoints(self, src, boundary_points, line_points):
+        boundary_ground_points = self.trackGroundPoints(src, boundary_points)
+        
+        # not using field lines detection
+        #line_ground_points = self.trackGroundPoints(src, line_points)
+        line_ground_points = []
+        
+        return boundary_ground_points, line_ground_points
+
+    def trackGroundPoints(self, src, points):
+        ground_points = []
+        for point in points:
             pixel_y, pixel_x = point
             # paint pixel for debug and documentation
             if self.debug_mode:
                 src[pixel_y, pixel_x] = self.field_detector.RED
                 cv2.drawMarker(src, (pixel_x, pixel_y), color=self.field_detector.RED)
             x, y, w = self.jetson_cam.pixelToRobotCoordinates(pixel_x=pixel_x, pixel_y=pixel_y, z_world=0)
-            boundary_ground_points.append([x, y, w])
-        
-        line_ground_points = []
-        for point in line_points:
-            pixel_y, pixel_x = point
-            # paint pixel for debug and documentation
-            # if self.debug_mode:
-            if False:
-                src[pixel_y, pixel_x] = self.field_detector.RED
-            x, y, w = self.jetson_cam.pixelToRobotCoordinates(pixel_x=pixel_x, pixel_y=pixel_y, z_world=0)
-            line_ground_points.append([x, y, w])
-        
-        return boundary_ground_points, line_ground_points
+            ground_points.append([x, y, w])
+
+        return ground_points 
 
     def process(self, src, timestamp):
         """
@@ -183,23 +215,71 @@ class JetsonVision():
         tracked_robot: robot position from tracking
         particle_filter_observations: observations used for self-localization algorithm
         """
+        # init
         self.current_frame = Frame(timestamp=timestamp, input_source=src)
+        detections, boundary_points, line_points = [], [], []
+
+        # CNN-based (SSD MobileNetv2) object detection ~30ms
         if self.has_object_detection:
-            self.detectAndTrackObjects(self.current_frame.input) # 30ms
+            detections = self.detectObjects(self.current_frame.input)
+
         # 42ms with field lines detection, 8~9ms without it
         if self.has_field_detection:
-            if self.enable_randomized_observations: self.field_detector.arrangeVerticalLinesRandom()
-            particle_filter_observations = self.detectAndTrackFieldPoints(self.current_frame.input)
-        else:
-            particle_filter_observations = []
+            boundary_points, line_points = self.detectFieldPoints(self.current_frame.input, detections)            
+
+        # remove out-of-field objects and compute relative positions 
+        self.trackObjects(detections)        
+
+        # compute field points relative positions
+        particle_filter_observations = self.trackFieldPoints(src, boundary_points, line_points)
+
         processed_vision = self.current_frame, self.tracked_ball, self.tracked_goal, self.tracked_robot, particle_filter_observations
-        # processed_vision = self.current_frame, self.tracked_ball, self.tracked_goal, self.tracked_robot
 
         return processed_vision
-        
+
+    def process_from_log(self, src, timestamp, has_goal, goal_bounding_box):
+        """
+        Detects and tracks objects, field lines and boundary points
+
+        Params:
+        src: image source (camera frame)
+        timestamp: current timestamp
+        -----------------
+        Returns:
+        current_frame: current frame containing flags to check for objects' detection
+        tracked_ball: ball position from tracking
+        tracked_goal: goal center position from tracking
+        tracked_robot: robot position from tracking
+        particle_filter_observations: observations used for self-localization algorithm
+        """
+        # init
+        self.current_frame = Frame(timestamp=timestamp, input_source=src)
+        detections, boundary_points, line_points = [], [], []
+
+        # CNN-based (SSD MobileNetv2) object detection ~30ms
+        if self.has_object_detection:
+            detections = self.detectObjects(self.current_frame.input)
+        else:
+            class_id, score, xmin, xmax, ymin, ymax = 2, has_goal, goal_bounding_box[0], goal_bounding_box[1], goal_bounding_box[2], goal_bounding_box[3]
+            detection = [class_id, score, xmin, xmax, ymin, ymax]
+            detections.append(detection)
+
+        # 42ms with field lines detection, 8~9ms without it
+        if self.has_field_detection:
+            boundary_points, line_points = self.detectFieldPoints(self.current_frame.input, detections)            
+
+        # remove out-of-field objects and compute relative positions 
+        self.trackObjects(detections)        
+
+        # compute field points relative positions
+        particle_filter_observations = self.trackFieldPoints(src, boundary_points, line_points)
+
+        processed_vision = self.current_frame, self.tracked_ball, self.tracked_goal, self.tracked_robot, particle_filter_observations
+
+        return processed_vision
+
 if __name__ == "__main__":
     import time
-    from glob import glob
 
     cwd = os.getcwd()
 
@@ -210,6 +290,7 @@ if __name__ == "__main__":
                         vertical_lines_offset=320,
                         enable_randomized_observations=True,
                         debug=True)
+    vision.jetson_cam.setPoseFrom3DModel(170, 106.7)
 
     while True:
         dir = cwd + f"/localization_data/quadrado{quadrado_nr}/{frame_nr}.jpg"
