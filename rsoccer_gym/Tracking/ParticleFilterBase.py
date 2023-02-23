@@ -178,7 +178,7 @@ class ParticleFilter:
             # Add particle i
             self.particles.append(particle)
 
-    def set_field_limits(self, field):
+    def set_field_limits(self, field = Field()):
         self.field = field
         self.x_min = field.x_min
         self.x_max = field.x_max
@@ -258,6 +258,7 @@ class ParticleFilter:
                 particle.weight = 0
 
     def compute_observation(self, particle):
+        
         boundary_points = self.vision.detect_boundary_points(
                                     particle.x, 
                                     particle.y, 

@@ -206,6 +206,25 @@ class SSLEmbeddedVision:
 
         return intercepts
 
+    def get_robot_to_positive_goal_vector(self, x, y, field):
+        goal_x, goal_y = field.x_max - field.boundary_width, 0
+        return np.array([goal_x - x, goal_y - y])
+
+    def get_robot_to_negative_goal_vector(self, x, y, field):
+        goal_x, goal_y = field.x_min + field.boundary_width, 0
+        return np.array([goal_x - x, goal_y - y])
+
+    def track_positive_goal_center(self, x, y, w, field):
+        robot_to_goal = self.get_robot_to_positive_goal_vector(x, y, field)
+        local_angle = np.arctan2(robot_to_goal[1], robot_to_goal[0]) - w
+        distance = np.linalg.norm(robot_to_goal)
+        return distance, local_angle
+
+    def track_negative_goal_center(self, x, y, w, field):
+        robot_to_goal = self.get_robot_to_negative_goal_vector(x, y, field)
+        local_angle = np.arctan2(robot_to_goal[1], robot_to_goal[0]) - w
+        distance = np.linalg.norm(robot_to_goal)
+        return distance, local_angle
 
     def convert_to_local(self, global_x, global_y, robot_x, robot_y, robot_w):
         x = global_x - robot_x
@@ -226,12 +245,13 @@ if __name__ == "__main__":
         time_step=0.025)
         
     env.field.boundary_width = 0.3
+    env.field.x_max = env.field.length/2+env.field.boundary_width
+    env.field.x_min = -(env.field.length/2+env.field.boundary_width)
 
-    robot_x, robot_y, robot_w = 0, 0, 0
+    robot_x, robot_y, robot_w = 1, 2, -23
 
     vision = SSLEmbeddedVision(vertical_lines_nr=1)
     
-    boundary_points = vision.detect_boundary_points(robot_x, robot_y, robot_w, env.field)
-    for point in boundary_points:
-        print(point)
+    distance, angle = vision.track_positive_goal_center(robot_x, robot_y, robot_w, env.field)
+    print(distance, angle)
     # import pdb;pdb.set_trace()
