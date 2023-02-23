@@ -23,8 +23,7 @@ def move_random(env):
     return env.action_space.sample()
 
 def split_observation(measurement):
-    movement = measurement[:3]
-    vision_xy_list = measurement[3:]
+    vision_xy_list = measurement
 
     vision_points = []
     for i in range(0, len(vision_xy_list)):
@@ -32,7 +31,7 @@ def split_observation(measurement):
             x, y = vision_xy_list[i], vision_xy_list[i+1]
             vision_points.append((x,y))
     
-    return movement, np.array(vision_points)
+    return np.array(vision_points)
 
 def split_actions_list(vision_movements, env):
     actions = []
@@ -64,6 +63,8 @@ if __name__ == "__main__":
     time_step_ms =  data.get_timesteps_average()
     time_steps = data.get_timesteps()
     frames = data.get_frames()
+    has_goals = data.get_has_goals()
+    goals = data.get_goals()
 
     # LOAD POSITION DATA
     position = data.get_position()
@@ -103,11 +104,11 @@ if __name__ == "__main__":
     while env.steps<len(position):
         env.update_time_step(time_steps[env.steps])
         img = get_image_from_frame_nr(path, frames[env.steps])
-        env.update_img(img)
+        env.update_img(img, has_goals[env.steps], goals[env.steps])
         robot_x, robot_y, robot_w = odometry[env.steps]
         action = position[env.steps]
         measurements, _, _, _ = env.step(action)
-        _, vision_points = split_observation(measurements)
+        vision_points = split_observation(measurements)
         dx, dy, dtheta = odometry_movements[env.steps]
         dx, dy = data.rotate_to_local(dx, dy, robot_w)
         movement = [dx, dy, dtheta]
@@ -117,6 +118,6 @@ if __name__ == "__main__":
         env.update_particles(robot_tracker.particles, odometry_tracking, particles_filter_tracking)
         env.render()
         time.sleep(time_steps[env.steps])
-        if counter<100:
+        if counter<0:
             env.update_step(0)
             counter += 1

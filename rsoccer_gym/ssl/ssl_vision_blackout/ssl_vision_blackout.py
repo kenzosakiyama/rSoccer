@@ -116,8 +116,10 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
     def update_time_step(self, time_step):
         self.time_step = time_step
 
-    def update_img(self, img):
+    def update_img(self, img, has_goal, goal_bbox):
         self.img = img
+        self.has_goal = has_goal
+        self.goal_bbox = goal_bbox
 
     def _render_particles(self):
         for i in range(self.n_particles):
@@ -127,19 +129,8 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
     def _frame_to_observations(self):
 
         observation = []
-
-        # for i in range(self.n_robots_blue):
-        movement = self.odometry.get_robot_movement(
-                            self.frame.robots_blue[0].v_x,
-                            self.frame.robots_blue[0].v_y,
-                            self.frame.robots_blue[0].v_theta,
-                            self.time_step)
-        observation.append(movement[0])
-        observation.append(movement[1])
-        observation.append(movement[2])
         
         if self.using_vision_frames:
-            # import pdb;pdb.set_trace()
             _, _, _, _, particle_filter_observations = self.embedded_vision.process(self.img, timestamp=time.time())
             boundary_ground_points, line_ground_points = particle_filter_observations
             for point in boundary_ground_points:

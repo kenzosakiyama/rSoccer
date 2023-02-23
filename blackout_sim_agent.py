@@ -31,8 +31,7 @@ def move_random(env):
 
 
 def split_observation(measurement):
-    movement = measurement[:3]
-    vision_xy_list = measurement[3:]
+    vision_xy_list = measurement
 
     vision_points = []
     for i in range(0, len(vision_xy_list)):
@@ -40,7 +39,7 @@ def split_observation(measurement):
             x, y = vision_xy_list[i], vision_xy_list[i + 1]
             vision_points.append((x, y))
 
-    return movement, np.array(vision_points)
+    return np.array(vision_points)
 
 
 def split_actions_list(vision_movements, env):
@@ -102,7 +101,7 @@ if __name__ == "__main__":
                 vertical_lines_nr = vertical_lines_nr, 
                 n_particles = n_particles,
                 initial_position = initial_position,
-                time_step=0.033,
+                time_step=0.010,
                 using_vision_frames = False)
     env.reset()
 
@@ -132,7 +131,7 @@ if __name__ == "__main__":
         robot_x, robot_y, robot_w = odometry[env.steps]
         action = vision[env.steps]
         measurements, _, _, _ = env.step(action)
-        _, vision_points = split_observation(measurements)
+        vision_points = split_observation(measurements)
         dx, dy, dtheta = odometry_movements[env.steps]
         dx, dy = data.rotate_to_local(dx, dy, robot_w)
         movement = [dx, dy, dtheta]

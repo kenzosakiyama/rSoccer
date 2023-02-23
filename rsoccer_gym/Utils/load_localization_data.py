@@ -57,6 +57,13 @@ class Read:
     def get_timestamps(self):
         return np.array(self.timestamps)
     
+    def get_has_goals(self):
+        has_goals = []
+        for goal in self.goal_bounding_box:
+            if goal == [0, 0, 0, 0]: has_goals.append(False)
+            else: has_goals.append(True)
+        return has_goals
+    
     def get_goals(self):
         return np.array(self.goal_bounding_box)
 
@@ -124,9 +131,9 @@ if __name__ == "__main__":
 
     cwd = os.getcwd()
 
-    quadrado_nr = 1
+    quadrado_nr = 15
     path = cwd+f'/localization_data/quadrado{quadrado_nr}/log.csv'
     file = Read(path)
 
-    print(file.get_timesteps_average())
+    print(file.get_has_goals())
 
