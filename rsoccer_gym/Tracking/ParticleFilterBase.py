@@ -328,22 +328,22 @@ class ParticleFilter:
 
         else: return False
 
-    def update(self, movement, measurements):
+    def update(self, movement, goal, field_points):
         """
         Process a measurement given the measured robot displacement and resample if needed.
 
         :param robot_forward_motion: Measured forward robot motion in meters.
         :param robot_angular_motion: Measured angular robot motion in radians.
-        :param measurements: Measurements.
+        :param field_points: field_points.
         :param landmarks: Landmark positions.
         """
 
         weights = []
-        if len(measurements)>0:
-            self.vision.set_detection_angles_from_list([measurements[0][1]])
+        if len(field_points)>0:
+            self.vision.set_detection_angles_from_list([field_points[0][1]])
         for particle in self.particles:
             # Compute current particle's weight based on likelihood
-            weight = particle.weight * self.compute_likelihood(measurements, particle)
+            weight = particle.weight * self.compute_likelihood(field_points, particle)
             # Store weight for normalization
             weights.append(weight)           
 
@@ -356,7 +356,7 @@ class ParticleFilter:
             self.particles[i].weight = weights[i]
 
         # Resample if needed
-        if self.needs_resampling(measurements):
+        if self.needs_resampling(field_points):
             self.displacement = [0, 0, 0]
             samples = self.resampler.resample(
                             self.particles_as_weigthed_samples(), 

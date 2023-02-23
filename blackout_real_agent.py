@@ -22,24 +22,17 @@ def move_forward(env, vx):
 def move_random(env):
     return env.action_space.sample()
 
-def split_observation(measurement):
-    vision_xy_list = measurement
+def split_observation(measurements):
+    goal = measurements[:3]
 
+    field_points = measurements[3:]
     vision_points = []
-    for i in range(0, len(vision_xy_list)):
+    for i in range(0, len(field_points)):
         if not (i%2):
-            x, y = vision_xy_list[i], vision_xy_list[i+1]
+            x, y = field_points[i], field_points[i+1]
             vision_points.append((x,y))
     
-    return np.array(vision_points)
-
-def split_actions_list(vision_movements, env):
-    actions = []
-    for movement in vision_movements:
-        vx, vy, vw = movement/env.time_step
-        action = set_robot_speed(env, vx, vy, vw)
-        actions.append(action)
-    return actions
+    return goal, np.array(vision_points)
 
 def get_image_from_frame_nr(path_to_images_folder, frame_nr):
     dir = path_to_images_folder+f'/{frame_nr}.jpg'
@@ -108,11 +101,11 @@ if __name__ == "__main__":
         robot_x, robot_y, robot_w = odometry[env.steps]
         action = position[env.steps]
         measurements, _, _, _ = env.step(action)
-        vision_points = split_observation(measurements)
+        goal, field_points = split_observation(measurements)
         dx, dy, dtheta = odometry_movements[env.steps]
         dx, dy = data.rotate_to_local(dx, dy, robot_w)
         movement = [dx, dy, dtheta]
-        robot_tracker.update(movement, vision_points)
+        robot_tracker.update(movement, goal, field_points)
         odometry_tracking = [robot_x, robot_y, np.rad2deg(robot_w)]
         particles_filter_tracking = robot_tracker.get_average_state()         
         env.update_particles(robot_tracker.particles, odometry_tracking, particles_filter_tracking)

@@ -136,7 +136,12 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
             _, _, tracked_goal, _, particle_filter_observations = self.embedded_vision.process_from_log(src=self.img, 
                                                                                             timestamp=time.time(), 
                                                                                             has_goal=self.has_goal, 
-                                                                                            goal_bounding_box = self.goal_bbox)
+                                                                                            goal_bounding_box=self.goal_bbox)
+            goal = self.embedded_vision.jetson_cam.xyToPolarCoordinates(tracked_goal.center_x, tracked_goal.center_y)
+            observation.append(self.has_goal)
+            observation.append(goal[0])
+            observation.append(goal[1])
+
             boundary_ground_points, line_ground_points = particle_filter_observations
             for point in boundary_ground_points:
                 point = self.embedded_vision.jetson_cam.xyToPolarCoordinates(point[0], point[1])
