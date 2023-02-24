@@ -589,7 +589,7 @@ class Camera():
         y = weight_y*top+(1-weight_y)*bottom
         return x, y
     
-    def goalAsPoint(self, left, top, right, bottom, weight_x = 0.5, weight_y=0.1):
+    def goalAsPoint(self, left, top, right, bottom, weight_x = 0.5, weight_y=0.12):
         x = weight_x*left+(1-weight_x)*right
         y = weight_y*top+(1-weight_y)*bottom
         return x, y

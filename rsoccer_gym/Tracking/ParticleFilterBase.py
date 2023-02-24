@@ -66,13 +66,20 @@ class Particle:
 
         return np.random.normal(movement, standard_deviation_vector, 3).tolist()
 
+    def limit_theta_degrees(self, theta):
+        while theta > 180:
+            theta -= 2*180
+        while theta < -180:
+            theta += 2*180
+        return theta
+
     def move(self, movement):
         movement = self.add_move_noise(movement)
         movement = self.rotate_to_global(movement[0], movement[1], movement[2])
-        self.state = [sum(x) for x in zip(self.state, movement)]
-        self.x = self.state[0]
-        self.y = self.state[1]
-        self.theta = ((self.state[2] + 180) % 360) - 180
+        self.x = self.state[0] + movement[0]
+        self.y = self.state[1] + movement[1]
+        self.theta = self.state[2] + movement[2]
+        self.state = [self.x, self.y, self.theta]
 
 class ParticleFilter:
     def __init__(
@@ -110,6 +117,8 @@ class ParticleFilter:
         self.resampling_algorithm = resampling_algorithm
         self.resampler = Resampler()
         self.displacement = [0, 0, 0]
+
+        self.failure = False
 
     def initialize_particles_from_seed_position(self, seed_x, seed_y, max_distance):
         """
@@ -232,6 +241,7 @@ class ParticleFilter:
         # Check if weights are non-zero
         if self.sum_weights < 1e-15:
             print("Weight normalization failed: sum of all weights is {} (weights will be reinitialized)".format(self.sum_weights))
+            self.failure = True
 
             # Set uniform weights
             return [(1.0 / len(weights)) for i in weights]
@@ -258,60 +268,113 @@ class ParticleFilter:
                 particle.weight = 0
 
     def compute_observation(self, particle):
-        
+        goal = self.vision.track_positive_goal_center(                                    
+                                    particle.x, 
+                                    particle.y, 
+                                    particle.theta, 
+                                    self.field)
         boundary_points = self.vision.detect_boundary_points(
                                     particle.x, 
                                     particle.y, 
                                     particle.theta, 
                                     self.field)
         
-        return boundary_points
+        return goal, boundary_points
 
-    def compute_likelihood(self, measurements, particle):
+    def compute_boundary_points_similarity(self, sigma=5, robot_observations=[], particle_observations=[]):
+        # initial value
+        likelihood_sample = 1
+
+        # Compute difference between real measurements and sample observations
+        differences = np.array(robot_observations) - particle_observations
+        # Loop over all observations for current particle
+        for diff in differences:
+            # Map difference true and expected angle measurement to probability
+            p_z_given_distance = \
+                np.exp(-sigma * (diff[0]) * (diff[0]) /
+                    (robot_observations[0][0] * robot_observations[0][0]))
+
+            # Incorporate likelihoods current landmark
+            likelihood_sample *= p_z_given_distance
+            if likelihood_sample<1e-15:
+                return 0
+
+        return likelihood_sample
+
+    def compute_normalized_angle_diff(self, diff):
+        while diff>180:
+            diff -= 2*180
+        while diff<-180:
+            diff += 2*180
+        d = np.abs(diff)/np.pi
+        return d
+
+    def compute_goal_similarity(self, sigma_distance=5, sigma_angle=10, robot_observation=[], particle_observation=[]):
+        # initial value
+        likelihood_sample = 1
+
+        # Compute difference between real measurements and sample observations
+        differences = np.array(robot_observation) - particle_observation
+        differences[2] = self.compute_normalized_angle_diff(differences[2])
+
+        # Returns 1 if robot does not see the goal
+        if not robot_observation[0]: return 1
+
+        # Returns 0 if particle's angle to goal is too high
+        if not particle_observation[0]: return 0
+        
+        # Map difference true and expected angle measurement to probability
+        p_z_given_distance = \
+            np.exp(-sigma_distance * (differences[1]) * (differences[1]) /
+                (robot_observation[1] * robot_observation[1]))
+        p_z_given_angle = \
+            np.exp(-sigma_angle * (differences[2]) * (differences[2]) /
+                (robot_observation[1] * robot_observation[1]))
+            
+        # Incorporate likelihoods current landmark
+        likelihood_sample *= p_z_given_distance*p_z_given_angle
+        if likelihood_sample<1e-15:
+            return 0
+
+        return likelihood_sample
+
+    def compute_likelihood(self, robot_goal, robot_field_points, particle):
         """
         Compute likelihood p(z|sample) for a specific measurement given sample observations.
 
-        :param measurements: Current measurements
+        :param robot_field_points: Current robot_field_points
         :param observations: Detected wall relative positions from the sample vision
         :return Likelihood
         """
         # Check if particle is out of field boundaries
         if particle.is_out_of_field(x_min=self.x_min, x_max=self.x_max, y_min=self.y_min, y_max=self.y_max):
             return 0
-        elif len(measurements)<1:
+        elif len(robot_field_points)<1:
             return 1        
         else:
             # Initialize measurement likelihood
             likelihood_sample = 1.0
-            sigma = 5
             
             # Compute particle observations
-            observations = self.compute_observation(particle)
-            # Compute difference between real measurements and sample observations
-            differences = np.array(measurements) - observations
-            # Loop over all observations for current particle
-            for diff in differences:
-                # Map difference true and expected angle measurement to probability
-                p_z_given_distance = \
-                    np.exp(-sigma * (diff[0]) * (diff[0]) /
-                        (measurements[0][0] * measurements[0][0]))
+            particle_goal, particle_boundary_points = self.compute_observation(particle)
+            
+            # Compute similarity from field boundary points
+            likelihood_sample *= self.compute_boundary_points_similarity(5, robot_field_points, particle_boundary_points)
 
-                # Incorporate likelihoods current landmark
-                likelihood_sample *= p_z_given_distance
-                if likelihood_sample<1e-15:
-                    return 0
+            # Compute similarity from goal center
+            likelihood_sample *= self.compute_goal_similarity(0.1, 10, robot_goal, particle_goal)
 
             # Return importance weight based on all landmarks
             return likelihood_sample
 
-    def needs_resampling(self, measurements):
+    def needs_resampling(self, robot_goal, robot_field_points):
         '''
         TODO: implement method for checking if resampling is needed
         '''
 
         # computes average for evaluating current state
         avg_particle = Particle(self.get_average_state(), 1)
-        weight = self.compute_likelihood(measurements, avg_particle)
+        weight = self.compute_likelihood(robot_goal, robot_field_points, avg_particle)
         if self.sum_weights>0.4*self.n_particles:
             print("Robot localization was found")
             # import pdb;pdb.set_trace()
@@ -344,7 +407,7 @@ class ParticleFilter:
             self.vision.set_detection_angles_from_list([field_points[0][1]])
         for particle in self.particles:
             # Compute current particle's weight based on likelihood
-            weight = particle.weight * self.compute_likelihood(field_points, particle)
+            weight = particle.weight * self.compute_likelihood(goal, field_points, particle)
             # Store weight for normalization
             weights.append(weight)           
 
@@ -357,7 +420,7 @@ class ParticleFilter:
             self.particles[i].weight = weights[i]
 
         # Resample if needed
-        if self.needs_resampling(field_points):
+        if self.needs_resampling(goal, field_points):
             self.displacement = [0, 0, 0]
             samples = self.resampler.resample(
                             self.particles_as_weigthed_samples(), 

@@ -80,6 +80,13 @@ class Read:
             steps.append(step)
         return np.array(steps)
 
+    def limit_angle(self, angle):
+        while angle>np.pi:
+            angle -= 2*np.pi
+        while angle<-np.pi:
+            angle += 2*np.pi
+        return angle
+
     def get_odometry_movement(self, degrees=False, local=False):
         '''
         Result: odometry[n] == sum(odometry_movement[:n+1]) + odometry[0]
@@ -88,6 +95,7 @@ class Read:
         odometry = self.get_odometry()
         for i in range(1,len(odometry)):
             movement = list(odometry[i] - odometry[i-1])
+            movement[2] = self.limit_angle(movement[2])
             if degrees: movement[2] = np.degrees(movement[2])
             odometry_movement.append(movement)
         return np.array(odometry_movement)
@@ -100,6 +108,7 @@ class Read:
         position = self.get_position()
         for i in range(1,len(position)):
             movement = list(position[i] - position[i-1])
+            movement[2] = self.limit_angle(movement[2])
             if degrees: movement[2] = np.degrees(movement[2])
             position_movement.append(movement)
         return np.array(position_movement)
@@ -125,7 +134,6 @@ class Read:
         timesteps = self.get_timesteps()
         return np.mean(timesteps)
         
-            
 if __name__ == "__main__":
     import os
 
@@ -133,7 +141,12 @@ if __name__ == "__main__":
 
     quadrado_nr = 15
     path = cwd+f'/localization_data/quadrado{quadrado_nr}/log.csv'
-    file = Read(path)
+    data = Read(path)
 
-    print(file.get_has_goals())
+    odometry_movements = data.get_odometry_movement(degrees=True)
+    for i in range(1, len(odometry_movements)):
+        movement = odometry_movements[i]
+        if movement[2]>180: 
+            print(movement[2], data.frames[i])
+
 
