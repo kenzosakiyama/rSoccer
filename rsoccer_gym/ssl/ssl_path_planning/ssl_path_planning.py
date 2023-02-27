@@ -53,6 +53,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         self.cumulative_reward_info = {
             "reward_dist": 0,
             "reward_angle": 0,
+            "reward_objective": 0,
             "Original_reward": 0,
         }
 
@@ -62,6 +63,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         self.cumulative_reward_info = {
             "reward_dist": 0,
             "reward_angle": 0,
+            "reward_objective": 0,
             "Original_reward": 0,
         }
         return super().reset()
@@ -99,40 +101,40 @@ class SSLPathPlanningEnv(SSLBaseEnv):
 
         return np.array(observation, dtype=np.float32)
 
-    def _get_commands(self, action):
-        field_half_length = self.field.length / 2  # x
-        field_half_width = self.field.width / 2  # y
+    def _get_commands(self, actions):
+        commands = []
 
-        target_x = action[0] * field_half_length
-        target_y = action[1] * field_half_width
-        target_angle = np.arctan2(action[2], action[3])
-
-        entry: GoToPointEntry = GoToPointEntry()
-        entry.target = Point2D(target_x * 1000.0, target_y * 1000.0)  # m to mm
-        entry.target_angle = target_angle
-        entry.using_prop_velocity = True
-
-        robot = self.frame.robots_blue[0]
-        angle = np.deg2rad(robot.theta)
-        position = Point2D(x=robot.x * 1000.0, y=robot.y * 1000.0)
-        velocity = Point2D(x=robot.v_x * 1000.0, y=robot.v_y * 1000.0)
-
-        result = go_to_point(
-            agent_position=position,
-            agent_velocity=velocity,
-            agent_angle=angle,
-            entry=entry,
+        angle = self.frame.robots_blue[0].theta
+        v_x, v_y, v_theta = self.convert_actions(actions, np.deg2rad(angle))
+        cmd = Robot(
+            yellow=False,
+            id=0,
+            v_x=v_x,
+            v_y=v_y,
+            v_theta=v_theta,
+            dribbler=False if actions[3] > 0 else False,
         )
+        commands.append(cmd)
 
-        return [
-            Robot(
-                yellow=False,
-                id=0,
-                v_x=result.velocity.x,
-                v_y=result.velocity.y,
-                v_theta=result.angular_velocity,
-            )
-        ]
+        return commands
+
+    def convert_actions(self, action, angle):
+        """Denormalize, clip to absolute max and convert to local"""
+        # Denormalize
+        v_x = action[0] * self.max_v
+        v_y = action[1] * self.max_v
+        v_theta = action[2] * self.max_w
+        # Convert to local
+        v_x, v_y = v_x * np.cos(angle) + v_y * np.sin(angle), -v_x * np.sin(
+            angle
+        ) + v_y * np.cos(angle)
+
+        # clip by max absolute
+        v_norm = np.linalg.norm([v_x, v_y])
+        c = v_norm < self.max_v or self.max_v / v_norm
+        v_x, v_y = v_x * c, v_y * c
+
+        return v_x, v_y, v_theta
 
     def reward_function(
         self,
@@ -144,8 +146,8 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         target_speed: float,
         target_angle: float,
     ):
-        PESO_DIST = 0.3
-        PESO_ANGULO = 0.7
+        PESO_DIST = 0.5
+        PESO_ANGULO = 0.5
         reward = np.zeros(2)
         done = False
         # max_dist = np.sqrt(self.field.length**2 + self.field.width**2)
@@ -156,23 +158,27 @@ class SSLPathPlanningEnv(SSLBaseEnv):
 
         dist_rw = (last_dist_robot_to_target - dist_robot_to_target) / self.max_v
 
-        # last_robot_angle = np.deg2rad(self.last_frame.robots_blue[0].theta)
+        last_robot_angle = np.deg2rad(self.last_frame.robots_blue[0].theta)
 
-        # angle_dist_rw = (abs_smallest_angle_diff(last_robot_angle, target_angle) -
-        #                  abs_smallest_angle_diff(robot_angle, target_angle)) / self.max_w
+        angle_dist_rw = (abs_smallest_angle_diff(last_robot_angle, target_angle) -
+                         abs_smallest_angle_diff(robot_angle, target_angle)) / self.max_w
         angle_ok = abs_smallest_angle_diff(robot_angle, target_angle) < ANGLE_TOLERANCE
 
         if dist_robot_to_target < 0.2 and angle_ok:
             done = True
-            reward += 10
-        else:
-            reward[0] = dist_rw*PESO_DIST
-            angle_ok = 1 if angle_ok else -1
-            reward[1] = PESO_ANGULO*angle_ok/1200
+            objective_reward = 1
+            reward += 0.5
+            self.cumulative_reward_info["reward_objective"] += objective_reward
+
+        reward[0] = dist_rw * PESO_DIST
+        angle_ok = 1 if angle_ok else -1
+        reward[1] = PESO_ANGULO * angle_dist_rw
 
         self.cumulative_reward_info["reward_dist"] += dist_rw
-        self.cumulative_reward_info["reward_angle"] += angle_ok/1200
-        self.cumulative_reward_info["Original_reward"] += dist_rw*PESO_DIST + PESO_ANGULO*angle_ok/1200
+        self.cumulative_reward_info["reward_angle"] += angle_dist_rw
+        self.cumulative_reward_info["Original_reward"] += (
+            dist_rw * PESO_DIST + PESO_ANGULO * angle_dist_rw
+        )
         return reward.sum(), done
 
     def _calculate_reward_and_done(self):
