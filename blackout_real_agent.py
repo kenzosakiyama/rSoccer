@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     # SET INITIAL ROBOT POSITION AND SEED
     initial_position = position[0]
-    seed_radius = 5
+    seed_radius = 1
     seed_x, seed_y, seed_theta = initial_position
     initial_position[2] = np.degrees(initial_position[2])
 
@@ -112,6 +112,6 @@ if __name__ == "__main__":
         env.render()
         #if robot_tracker.failure: import pdb;pdb.set_trace()
         time.sleep(time_steps[env.steps])
-        if counter<100:
+        if counter<0:
             env.update_step(0)
             counter += 1
