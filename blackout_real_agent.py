@@ -3,24 +3,9 @@ import numpy as np
 import cv2
 from rsoccer_gym.Tracking.ParticleFilterBase import ParticleFilter
 from rsoccer_gym.Tracking import ResamplingAlgorithms
-
-def set_robot_speed(env, vx, vy, vw):
-    action = env.action_space.sample()
-    action[0] = vx
-    action[1] = vy
-    action[2] = vw
-    return action
-
-def rotate_on_self(env, vw):
-    action = set_robot_speed(env, 0, 0, vw)
-    return action
-
-def move_forward(env, vx):
-    action = set_robot_speed(env, vx, 0, 0)
-    return action
-
-def move_random(env):
-    return env.action_space.sample()
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import multiprocessing as mp
 
 def split_observation(measurements):
     goal = measurements[:3]
@@ -39,13 +24,34 @@ def get_image_from_frame_nr(path_to_images_folder, frame_nr):
     img = cv2.imread(dir)
     return img
 
+def process_plot(xs, ys):
+    fig = plt.figure()
+    ax = fig.add_subplot()
+    def update(*args, **kwargs):
+        list_x = args[1]
+        list_y = args[2]
+        x = xs.get()
+        y = ys.get()
+        list_x.append(x)
+        list_y.append(y)
+        # Draw x and y lists
+        ax.clear()
+        ax.plot(list_x, list_y)
+        list_x = list_x[-20:]
+        list_y = list_y[-20:]
+
+    big_x = []
+    big_y = []
+    _ = animation.FuncAnimation(fig, update, fargs=(big_x, big_y),interval=33)
+    plt.show()
+
 if __name__ == "__main__":
     import os
     from rsoccer_gym.Utils.load_localization_data import Read
     import time
     cwd = os.getcwd()
 
-    n_particles = 50
+    n_particles = 10
     vertical_lines_nr = 1
 
     # LOAD REAL ODOMETRY DATA
@@ -94,8 +100,12 @@ if __name__ == "__main__":
 
     counter = 0
 
+    xs = mp.Queue(maxsize=len(position))
+    ys = mp.Queue(maxsize=len(position))
+    side_process = mp.Process(target=process_plot, args=(xs, ys))
+    side_process.start()
+
     while env.steps<len(position):
-        env.update_time_step(time_steps[env.steps])
         img = get_image_from_frame_nr(path, frames[env.steps])
         env.update_img(img, has_goals[env.steps], goals[env.steps])
         robot_x, robot_y, robot_w = odometry[env.steps]
@@ -110,8 +120,13 @@ if __name__ == "__main__":
         particles_filter_tracking = robot_tracker.get_average_state()         
         env.update_particles(robot_tracker.particles, odometry_tracking, particles_filter_tracking)
         env.render()
-        #if robot_tracker.failure: import pdb;pdb.set_trace()
         time.sleep(time_steps[env.steps])
         if counter<0:
             env.update_step(0)
             counter += 1
+
+        xs.put(env.steps)
+        ys.put(robot_tracker.prior_sum_weights/robot_tracker.n_particles)
+
+    side_process.terminate()
+    side_process.join()

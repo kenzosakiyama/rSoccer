@@ -97,10 +97,13 @@ class ParticleFilter:
             print("Warning: initializing particle filter with number of particles < 1: {}".format(number_of_particles))
         
         # Initialize filter settings
-        self.sum_weights = 0
         self.n_particles = number_of_particles
         self.particles = []
         self.n_active_particles = number_of_particles
+
+        # Metrics for evaluating the particles' quality
+        self.prior_sum_weights = 0
+        self.average_particle_weight = 0
 
         # State related settings
         self.state_dimension = len(Particle().state)
@@ -236,18 +239,18 @@ class ParticleFilter:
         Normalize all particle weights.
         """
         # Compute sum weighted samples
-        self.sum_weights = sum(weights)     
+        self.prior_sum_weights = sum(weights)     
 
         # Check if weights are non-zero
-        if self.sum_weights < 1e-15:
-            print("Weight normalization failed: sum of all weights is {} (weights will be reinitialized)".format(self.sum_weights))
+        if self.prior_sum_weights < 1e-15:
+            print("Weight normalization failed: sum of all weights is {} (weights will be reinitialized)".format(self.prior_sum_weights))
             self.failure = True
 
             # Set uniform weights
             return [(1.0 / len(weights)) for i in weights]
 
         # Return normalized weights
-        return [weight / self.sum_weights for weight in weights]
+        return [weight / self.prior_sum_weights for weight in weights]
 
     def propagate_particles(self, movement):
         """
@@ -371,11 +374,12 @@ class ParticleFilter:
         '''
         TODO: implement method for checking if resampling is needed
         '''
-
+        
         # computes average for evaluating current state
         avg_particle = Particle(self.get_average_state(), 1)
         weight = self.compute_likelihood(robot_goal, robot_field_points, avg_particle)
-        if self.sum_weights>0.4*self.n_particles:
+        self.average_particle_weight = weight
+        if self.prior_sum_weights>0.4*self.n_particles:
             print("Robot localization was found")
             # import pdb;pdb.set_trace()
         if weight<0.5:
