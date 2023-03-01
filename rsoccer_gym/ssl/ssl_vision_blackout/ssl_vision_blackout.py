@@ -107,10 +107,12 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
             self.field.y_min = -(field.width/2+field.boundary_width)
             self.field.y_max = (field.width/2+field.boundary_width)        
 
-    def update_particles(self, particles, odometry_tracking, particle_filter_tracking):
+    def update_particles(self, particles, odometry_tracking, particle_filter_tracking, time_step):
         self.particles = particles
         self.trackers[0] = Particle(odometry_tracking, 0.2)
         self.trackers[1] = Particle(particle_filter_tracking, 0.2)
+        time.sleep(time_step)
+
 
     def update_step(self, step):
         self.steps = step

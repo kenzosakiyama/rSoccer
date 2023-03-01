@@ -24,6 +24,13 @@ def get_image_from_frame_nr(path_to_images_folder, frame_nr):
     img = cv2.imread(dir)
     return img
 
+def parse_particle_filter_data(measurements, global_movement, robot_w, data):
+    goal, field_points = split_observation(measurements)
+    dx, dy, dtheta = global_movement
+    dx, dy = data.rotate_to_local(dx, dy, robot_w)
+    movement = [dx, dy, dtheta]
+    return movement, goal, field_points
+
 def process_plot(xs, ys):
     fig = plt.figure()
     ax = fig.add_subplot()
@@ -51,7 +58,7 @@ if __name__ == "__main__":
     import time
     cwd = os.getcwd()
 
-    n_particles = 10
+    n_particles = 50
     vertical_lines_nr = 1
 
     # LOAD REAL ODOMETRY DATA
@@ -70,7 +77,7 @@ if __name__ == "__main__":
 
     # SET INITIAL ROBOT POSITION AND SEED
     initial_position = position[0]
-    seed_radius = 1
+    seed_radius = 3
     seed_x, seed_y, seed_theta = initial_position
     initial_position[2] = np.degrees(initial_position[2])
 
@@ -111,22 +118,22 @@ if __name__ == "__main__":
         robot_x, robot_y, robot_w = odometry[env.steps]
         action = position[env.steps]
         measurements, _, _, _ = env.step(action)
-        goal, field_points = split_observation(measurements)
-        dx, dy, dtheta = odometry_movements[env.steps]
-        dx, dy = data.rotate_to_local(dx, dy, robot_w)
-        movement = [dx, dy, dtheta]
+        movement, goal, field_points = parse_particle_filter_data(
+                                                                measurements, 
+                                                                odometry_movements[env.steps],
+                                                                robot_w,
+                                                                data)
         robot_tracker.update(movement, goal, field_points)
         odometry_tracking = [robot_x, robot_y, np.rad2deg(robot_w)]
         particles_filter_tracking = robot_tracker.get_average_state()         
-        env.update_particles(robot_tracker.particles, odometry_tracking, particles_filter_tracking)
+        env.update_particles(robot_tracker.particles, odometry_tracking, particles_filter_tracking, time_steps[env.steps])
         env.render()
-        time.sleep(time_steps[env.steps])
         if counter<0:
             env.update_step(0)
             counter += 1
 
         xs.put(env.steps)
-        ys.put(robot_tracker.prior_sum_weights/robot_tracker.n_particles)
+        ys.put(robot_tracker.average_particle_weight)
 
     side_process.terminate()
     side_process.join()

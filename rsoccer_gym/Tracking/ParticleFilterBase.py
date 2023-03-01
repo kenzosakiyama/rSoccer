@@ -313,18 +313,18 @@ class ParticleFilter:
         return d
 
     def compute_goal_similarity(self, sigma_distance=5, sigma_angle=10, robot_observation=[], particle_observation=[]):
+        # Returns 1 if robot does not see the goal
+        if not robot_observation[0]: return 1
+
+        # Returns 0 if particle's angle to goal is too high
+        else: return particle_observation[0]
+
         # initial value
         likelihood_sample = 1
 
         # Compute difference between real measurements and sample observations
         differences = np.array(robot_observation) - particle_observation
         differences[2] = self.compute_normalized_angle_diff(differences[2])
-
-        # Returns 1 if robot does not see the goal
-        if not robot_observation[0]: return 1
-
-        # Returns 0 if particle's angle to goal is too high
-        if not particle_observation[0]: return 0
         
         # Map difference true and expected angle measurement to probability
         p_z_given_distance = \
@@ -365,7 +365,7 @@ class ParticleFilter:
             likelihood_sample *= self.compute_boundary_points_similarity(5, robot_field_points, particle_boundary_points)
 
             # Compute similarity from goal center
-            likelihood_sample *= self.compute_goal_similarity(0.1, 10, robot_goal, particle_goal)
+            likelihood_sample *= self.compute_goal_similarity(0, 10, robot_goal, particle_goal)
 
             # Return importance weight based on all landmarks
             return likelihood_sample

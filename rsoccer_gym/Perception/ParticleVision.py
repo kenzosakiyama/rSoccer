@@ -226,7 +226,7 @@ class SSLEmbeddedVision:
         x, y = self.get_robot_to_positive_goal_vector(x, y, field)
         distance = np.sqrt(x**2 + y**2)
         local_angle = self.limit_angle_degrees(np.rad2deg(np.arctan2(y, x)) - w)
-        if np.abs(local_angle)>45: has_goal = 0
+        if np.abs(local_angle)>30: has_goal = 0
         else: has_goal = 1
 
         return has_goal, distance, local_angle
@@ -235,7 +235,7 @@ class SSLEmbeddedVision:
         x, y = self.get_robot_to_negative_goal_vector(x, y, field)
         distance = np.sqrt(x**2 + y**2)
         local_angle = np.rad2deg(np.arctan2(y, x)) - w
-        if np.abs(local_angle)>35: has_goal = 0
+        if np.abs(local_angle)>30: has_goal = 0
         else: has_goal = 1
 
         return has_goal, distance, local_angle
