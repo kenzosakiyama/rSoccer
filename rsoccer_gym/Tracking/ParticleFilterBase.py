@@ -362,7 +362,7 @@ class ParticleFilter:
             particle_goal, particle_boundary_points = self.compute_observation(particle)
             
             # Compute similarity from field boundary points
-            likelihood_sample *= self.compute_boundary_points_similarity(5, robot_field_points, particle_boundary_points)
+            likelihood_sample *= self.compute_boundary_points_similarity(10, robot_field_points, particle_boundary_points)
 
             # Compute similarity from goal center
             likelihood_sample *= self.compute_goal_similarity(0, 10, robot_goal, particle_goal)
