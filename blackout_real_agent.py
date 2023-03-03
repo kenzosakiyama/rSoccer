@@ -3,10 +3,7 @@ import numpy as np
 import cv2
 from rsoccer_gym.Tracking.ParticleFilterBase import ParticleFilter
 from rsoccer_gym.Tracking import ResamplingAlgorithms
-import matplotlib
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-import multiprocessing as mp
+from rsoccer_gym.Plotter.Plotter import RealTimePlotter
 
 def split_observation(measurements):
     goal = measurements[:3]
@@ -30,44 +27,6 @@ def parse_particle_filter_data(measurements, global_movement, robot_w, data):
     dx, dy = data.rotate_to_local(dx, dy, robot_w)
     movement = [dx, dy, dtheta]
     return movement, goal, field_points
-
-def process_plot(xs, ys):
-    n_plots = 3
-    fig = plt.figure(figsize=(6.75,9.3))
-    ax = fig.subplots(nrows=n_plots, ncols=1)
-    fig.subplots_adjust(left=0.1, 
-                        bottom=0.1, 
-                        right=0.9, 
-                        top=0.9,
-                        wspace=0.4,
-                        hspace=0.4)
-    list_x = []
-    list_ys = []
-    ax_titles = ["RMSE",
-                 "Similarity from Particles Filter Median Particle",
-                 "Non-normalized Weights Sum"]
-    
-    for i in range(0, n_plots):
-        list_ys.append([])
-
-    def update(*args, **kwargs):
-        list_x = args[1]
-        list_ys = args[2]
-        _x = xs.get()
-        _y = ys.get()
-        list_x.append(_x)
-        for i in range(0, n_plots):
-            list_ys[i].append(_y[i])
-            ax[i].clear()
-            ax[i].plot(list_x, list_ys[i])
-            ax[i].set_title(ax_titles[i])
-
-        # Draw x and y lists
-#        list_x = list_x[-20:]
-#        list_y = list_y[-20:]
-
-    _ = animation.FuncAnimation(fig, update, fargs=(list_x, list_ys,), interval=1)
-    plt.show()
 
 if __name__ == "__main__":
     import os
@@ -124,11 +83,12 @@ if __name__ == "__main__":
 
     counter = 0
 
-    xs = mp.Queue(maxsize=len(position))
-    ys = mp.Queue(maxsize=3*len(position))
-
-    side_process = mp.Process(target=process_plot, args=(xs, ys))
-    side_process.start()
+    ax_titles = ["RMSE",
+                "Similarity from Particles Filter Median Particle",
+                "Non-normalized Weights Sum"]
+    plotter = RealTimePlotter(n_plots=3, 
+                              max_size=len(position),
+                              titles=ax_titles)
 
     while env.steps<len(position)-1:
         img = get_image_from_frame_nr(path, frames[env.steps])
@@ -152,8 +112,6 @@ if __name__ == "__main__":
             counter += 1
 
         _ys = [RMSE, robot_tracker.average_particle_weight, robot_tracker.prior_sum_weights/robot_tracker.n_particles]
-        xs.put(env.steps)
-        ys.put(_ys)
+        plotter.add_data(env.steps, _ys)
 
-    side_process.terminate()
-    side_process.join()
+    plotter.kill_process()
