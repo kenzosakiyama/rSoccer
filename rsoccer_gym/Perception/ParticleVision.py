@@ -60,7 +60,7 @@ class Camera:
         self.rotation_matrix = rmtx
         self.translation_vector = tvec
 
-class SSLEmbeddedVision:
+class ParticleVision:
     '''
     Class for simulating Vision Blackout vision module
     '''

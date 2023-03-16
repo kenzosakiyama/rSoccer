@@ -1,7 +1,7 @@
 from cmath import cos
 import numpy as np
 import math
-from rsoccer_gym.Perception.ParticleVision import SSLEmbeddedVision
+from rsoccer_gym.Perception.ParticleVision import ParticleVision
 from rsoccer_gym.Tracking.Resampler import Resampler
 from rsoccer_gym.Perception.entities import Field
 
@@ -110,7 +110,7 @@ class ParticleFilter:
         self.set_field_limits(field)
 
         # Particle sensors
-        self.vision = SSLEmbeddedVision(vertical_lines_nr=vertical_lines_nr)
+        self.vision = ParticleVision(vertical_lines_nr=vertical_lines_nr)
 
         # Set noise
         self.process_noise = process_noise
@@ -309,7 +309,7 @@ class ParticleFilter:
             diff -= 2*180
         while diff<-180:
             diff += 2*180
-        d = np.abs(diff)/np.pi
+        d = np.abs(diff)/180
         return d
 
     def compute_goal_similarity(self, sigma_distance=5, sigma_angle=10, robot_observation=[], particle_observation=[]):
@@ -362,13 +362,25 @@ class ParticleFilter:
             particle_goal, particle_boundary_points = self.compute_observation(particle)
             
             # Compute similarity from field boundary points
-            likelihood_sample *= self.compute_boundary_points_similarity(10, robot_field_points, particle_boundary_points)
+            likelihood_sample *= self.compute_boundary_points_similarity(6.25, robot_field_points, particle_boundary_points)
 
             # Compute similarity from goal center
             likelihood_sample *= self.compute_goal_similarity(0, 10, robot_goal, particle_goal)
 
             # Return importance weight based on all landmarks
             return likelihood_sample
+
+    def compute_covariance(self, avg_particle):
+        Pxx = 0
+        ux = np.array(avg_particle)
+        for particle in self.particles:
+            diff = particle.state - ux
+            diff[0] = diff[0]/self.x_max
+            diff[1] = diff[1]/self.x_max
+            diff[2] = self.compute_normalized_angle_diff(diff[2])
+            Pxx += particle.weight*diff@diff
+
+        return Pxx      
 
     def needs_resampling(self, robot_goal, robot_field_points):
         '''
@@ -379,9 +391,10 @@ class ParticleFilter:
         avg_particle = Particle(self.get_average_state(), 1)
         weight = self.compute_likelihood(robot_goal, robot_field_points, avg_particle)
         self.average_particle_weight = weight
-        if self.prior_sum_weights>0.4*self.n_particles:
-            print("Robot localization was found")
-            # import pdb;pdb.set_trace()
+        pxx = self.compute_covariance(avg_particle.state)
+        #if pxx<0.1:
+            #print("Robot localization was found")
+        #    import pdb;pdb.set_trace()
         if weight<0.5:
             return True
 
@@ -438,11 +451,6 @@ class ParticleFilter:
                 if weights[i]<1e-13:
                     self.n_active_particles = self.n_active_particles-1
                 self.particles[i].weight = weights[i]
-        # if self.needs_resampling():
-        #     self.displacement = [0, 0, 0]
-        #     mean_state = self.get_average_state()
-        #     self.initialize_particles_gaussian(mean_vector=mean_state, standard_deviation_vector=[0.1, 0.1, 30])
-
     
         # Propagate the particles state according to the current movements
         self.propagate_particles(movement)

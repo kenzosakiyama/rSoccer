@@ -1,10 +1,3 @@
-from rsoccer_gym.Perception.entities import Ball, Robot, Goal, Field, Frame
-from rsoccer_gym.Perception.field_detection import FieldDetection
-from rsoccer_gym.Perception.object_localization import Camera
-try:
-    from rsoccer_gym.Perception.object_detection import DetectNet
-except:
-    print("Could not import tensorrt and its dependencies")
 import numpy as np
 import cv2
 import os
@@ -279,6 +272,14 @@ class JetsonVision():
         return processed_vision
 
 if __name__ == "__main__":
+    from entities import Ball, Robot, Goal, Field, Frame
+    from field_detection import FieldDetection
+    from object_localization import Camera
+    try:
+        from object_detection import DetectNet
+    except:
+        print("Could not import tensorrt and its dependencies")
+
     import time
 
     cwd = os.getcwd()
@@ -309,3 +310,12 @@ if __name__ == "__main__":
             break
         else:
             frame_nr=frame_nr+1
+
+else:
+    from rsoccer_gym.Perception.entities import Ball, Robot, Goal, Field, Frame
+    from rsoccer_gym.Perception.field_detection import FieldDetection
+    from rsoccer_gym.Perception.object_localization import Camera
+    try:
+        from rsoccer_gym.Perception.object_detection import DetectNet
+    except:
+        print("Could not import tensorrt and its dependencies")

@@ -1,11 +1,10 @@
-import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import multiprocessing as mp
 
 class RealTimePlotter:
     '''
-    Class for plotting real-time data on a parallel process
+    Class for plotting real-time data on a parallel process.
     '''
     def __init__(self,
                  n_plots,
@@ -32,8 +31,16 @@ class RealTimePlotter:
         self.side_process = mp.Process(target=self.process_plot, args=(self.xs, self.ys))
         self.side_process.start()
 
+    def set_axis(self, ax, ax_nr):
+        ax.clear()
+        if ax_nr==0: ax.set_ylim(0, 5)
+        if ax_nr==1: ax.set_ylim(0, 1)
+        if ax_nr==2: ax.set_ylim(0, 1)
+        ax.set_title(self.ax_titles[ax_nr])
+
     def process_plot(self, xs, ys):
-        fig = plt.figure(figsize=(6.75,9.3))
+        # PLOT CONFIGS:
+        fig = plt.figure(figsize=(6.75, 9.3))
         ax = fig.subplots(nrows=self.n_plots, ncols=1)
         fig.subplots_adjust(left=0.1, 
                             bottom=0.1, 
@@ -54,11 +61,10 @@ class RealTimePlotter:
             list_x.append(_x)
             for i in range(0, self.n_plots):
                 list_ys[i].append(_y[i])
-                ax[i].clear()
+                self.set_axis(ax[i], i)
                 ax[i].plot(list_x, list_ys[i])
-                ax[i].set_title(self.ax_titles[i])
 
-        _ = animation.FuncAnimation(fig, update, fargs=(list_x, list_ys,), interval=1)
+        _ = animation.FuncAnimation(fig, update, fargs=(list_x, list_ys), interval=1)
         plt.show()
 
     def kill_process(self):

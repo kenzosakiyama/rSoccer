@@ -34,7 +34,7 @@ if __name__ == "__main__":
     import time
     cwd = os.getcwd()
 
-    n_particles = 50
+    n_particles = 10
     vertical_lines_nr = 1
 
     # LOAD REAL ODOMETRY DATA
@@ -58,22 +58,21 @@ if __name__ == "__main__":
     initial_position[2] = np.degrees(initial_position[2])
 
     # Using VSS Single Agent env
-    env = gym.make('SSLVisionBlackout-v0', 
-                vertical_lines_nr = vertical_lines_nr, 
-                n_particles = n_particles,
-                initial_position = initial_position,
-                time_step=time_step_ms,
-                using_vision_frames = True)
+    env = gym.make('SSLVisionBlackout-v0',
+                   vertical_lines_nr = vertical_lines_nr, 
+                   n_particles = n_particles,
+                   initial_position = initial_position,
+                   time_step=time_step_ms,
+                   using_vision_frames = True)
     env.reset()
 
-    robot_tracker = ParticleFilter(
-                                    number_of_particles=n_particles, 
-                                    field=env.field,
-                                    process_noise=[1, 1, 1],
-                                    measurement_noise=[1, 1],
-                                    vertical_lines_nr=vertical_lines_nr,
-                                    using_real_field=env.using_vision_frames,
-                                    resampling_algorithm=ResamplingAlgorithms.SYSTEMATIC)
+    robot_tracker = ParticleFilter(number_of_particles=n_particles, 
+                                   field=env.field,
+                                   process_noise=[1, 1, 1],
+                                   measurement_noise=[1, 1],
+                                   vertical_lines_nr=vertical_lines_nr,
+                                   using_real_field=env.using_vision_frames,
+                                   resampling_algorithm=ResamplingAlgorithms.SYSTEMATIC)
     robot_tracker.initialize_particles_from_seed_position(seed_x, seed_y, seed_radius)
     #robot_tracker.initialize_particles_uniform()
 
@@ -96,22 +95,22 @@ if __name__ == "__main__":
         robot_x, robot_y, robot_w = odometry[env.steps]
         action = position[env.steps]
         measurements, _, _, _ = env.step(action)
-        movement, goal, field_points = parse_particle_filter_data(
-                                                                measurements, 
-                                                                odometry_movements[env.steps],
-                                                                robot_w,
-                                                                data)
+        movement, goal, field_points = parse_particle_filter_data(measurements,
+                                                                  odometry_movements[env.steps],
+                                                                  robot_w,
+                                                                  data)
         robot_tracker.update(movement, goal, field_points)
-        odometry_tracking = [robot_x, robot_y, np.rad2deg(robot_w)]
+        odometry_tracking = [robot_x + initial_position[0], robot_y + initial_position[1], np.rad2deg(robot_w) + initial_position[2]]
         particles_filter_tracking = robot_tracker.get_average_state()         
         env.update_particles(robot_tracker.particles, odometry_tracking, particles_filter_tracking, time_steps[env.steps])
         RMSE = np.sqrt((particles_filter_tracking[0]-position[env.steps][0])**2 + (particles_filter_tracking[1]-position[env.steps][1])**2)
+        covariance = robot_tracker.compute_covariance(particles_filter_tracking)
         env.render()
         if counter<0:
             env.update_step(0)
             counter += 1
 
-        _ys = [RMSE, robot_tracker.average_particle_weight, robot_tracker.prior_sum_weights/robot_tracker.n_particles]
+        _ys = [RMSE, robot_tracker.average_particle_weight, covariance]
         plotter.add_data(env.steps, _ys)
 
     plotter.kill_process()
