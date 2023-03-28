@@ -133,6 +133,9 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         target_v_x = action[4] * self.max_v
         target_v_y = action[5] * self.max_v
 
+        if self.view is not None:
+            self.view.add_command(target_x, target_y, target_angle)
+
         entry: GoToPointEntry = GoToPointEntry()
         entry.target = Point2D(target_x * 1000.0, target_y * 1000.0)  # m to mm
         entry.target_angle = target_angle

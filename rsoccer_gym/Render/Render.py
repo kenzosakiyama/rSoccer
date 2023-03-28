@@ -13,6 +13,8 @@ LINES_WHITE = (220 / 255, 220 / 255, 220 / 255)
 ROBOT_BLACK = (25 / 255, 25 / 255, 25 / 255)
 BALL_ORANGE = (253 / 255, 106 / 255, 2 / 255)
 TARGET_RED = (255 / 255, 0 / 255, 0 / 255)
+TARGET_BLUE = (0 / 255, 0 / 255, 255 / 255)
+TARGET_GREEN = (0 / 255, 255 / 255, 0 / 255)
 TAG_BLUE = (0 / 255, 64 / 255, 255 / 255)
 TAG_YELLOW = (250 / 255, 218 / 255, 94 / 255)
 TAG_GREEN = (57 / 255, 220 / 255, 20 / 255)
@@ -21,6 +23,7 @@ TAG_PURPLE = (102 / 255, 51 / 255, 153 / 255)
 TAG_PINK = (220 / 255, 0 / 255, 220 / 255)
 GRAY = (128 / 255, 128 / 255, 128 / 255)
 LIGHT_GRAY = (192 / 255, 192 / 255, 192 / 255)
+YELLOW = (255 / 255, 255 / 255, 0 / 255)
 
 
 class RCGymRender:
@@ -69,6 +72,8 @@ class RCGymRender:
         self.target_angle_direction: rendering.Transform = None
         self.target_angle = None
         self.target_tolerance = angle_tolerance
+        self.polyline = []
+        self.commands = []
 
         # Window dimensions in pixels
         screen_width = width
@@ -123,6 +128,9 @@ class RCGymRender:
         del (self.screen)
         self.screen = None
 
+    def add_command(self, x, y, theta) -> None:
+        self.commands.append((x, y, theta))
+
     def set_target(self, x: float, y: float) -> None:
         self.target_position_x = x
         self.target_position_y = y
@@ -157,9 +165,40 @@ class RCGymRender:
             self.blue_robots[i].set_translation(blue.x, blue.y)
             self.blue_robots[i].set_rotation(np.deg2rad(blue.theta))
 
+            if i == 0:
+                self.polyline.append((blue.x, blue.y, np.deg2rad(blue.theta)))
+
         for i, yellow in enumerate(frame.robots_yellow.values()):
             self.yellow_robots[i].set_translation(yellow.x, yellow.y)
             self.yellow_robots[i].set_rotation(np.deg2rad(yellow.theta))
+
+        # for x, y, theta in self.polyline:
+        #     robot_radius: float = self.field.rbt_radius
+        #     rendering_direction: rendering.Geom = rendering.make_polyline([
+        #         (x, y), (x + robot_radius * np.cos(theta), y + robot_radius * np.sin(theta))
+        #     ])
+        #     rendering_direction.set_color(*GRAY)
+        #     rendering_direction.set_linewidth(2)
+        #     self.screen.add_onetime(rendering_direction)
+        
+        rendering_polyline: rendering.Geom = rendering.make_polyline([(x, y) for x, y, theta in self.polyline])
+        rendering_polyline.set_color(*TARGET_RED)
+        rendering_polyline.set_linewidth(2)
+        self.screen.add_onetime(rendering_polyline)
+
+        rendering_commands: rendering.Geom = rendering.make_polyline([(x, y) for x, y, theta in self.commands])
+        rendering_commands.set_color(*TARGET_GREEN)
+        rendering_commands.set_linewidth(2)
+        self.screen.add_onetime(rendering_commands)
+
+        for x, y, theta in self.commands:
+            target_transform: rendering.Transform = rendering.Transform()
+            target_radius: float = self.field.ball_radius
+            rendering_dot: rendering.Geom = rendering.make_circle(target_radius, filled=True)
+            rendering_dot.add_attr(target_transform)
+            target_transform.set_translation(x, y)
+            rendering_dot.set_color(*TARGET_BLUE)
+            self.screen.add_onetime(rendering_dot)
 
         return self.screen.render(return_rgb_array=return_rgb_array)
 
