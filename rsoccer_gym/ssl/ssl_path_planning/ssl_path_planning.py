@@ -21,7 +21,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
                          n_robots_yellow=n_robots_yellow, time_step=0.025)
 
         self.action_space = gym.spaces.Box(low=-1, high=1,  # hyp tg.
-                                           shape=(4, ), dtype=np.float32)
+                                           shape=(6, ), dtype=np.float32)
 
         n_obs = 6 + 4 + 7*self.n_robots_blue + 2*self.n_robots_yellow
         self.observation_space = gym.spaces.Box(low=-self.NORM_BOUNDS,
@@ -116,11 +116,13 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         target_x = action[0] * field_half_length
         target_y = action[1] * field_half_width
         target_angle = np.arctan2(action[2], action[3])
+        target_v_x = action[4] * self.max_v
+        target_v_y = action[5] * self.max_v
 
         entry: GoToPointEntry = GoToPointEntry()
         entry.target = Point2D(target_x * 1000.0, target_y * 1000.0)  # m to mm
         entry.target_angle = target_angle
-        entry.target_velocity = self.target_velocity
+        entry.target_velocity = Point2D(target_v_x * 1000.0, target_v_y * 1000.0)
         entry.using_prop_velocity = True
 
         robot = self.frame.robots_blue[0]
