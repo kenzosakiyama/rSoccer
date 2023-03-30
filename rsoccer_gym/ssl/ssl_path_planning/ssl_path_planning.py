@@ -21,7 +21,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
                          n_robots_yellow=n_robots_yellow, time_step=0.025)
 
         self.action_space = gym.spaces.Box(low=-1, high=1,  # hyp tg.
-                                           shape=(6, ), dtype=np.float32)
+                                           shape=(5, ), dtype=np.float32)
 
         n_obs = 6 + 4 + 7*self.n_robots_blue + 2*self.n_robots_yellow
         self.observation_space = gym.spaces.Box(low=-self.NORM_BOUNDS,
@@ -127,30 +127,17 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         return v_x, v_y, v_theta
 
     def _get_commands(self, action):
-        target_x = action[0] * self.max_pos
-        target_y = action[1] * self.max_pos
-        target_angle = np.arctan2(action[2], action[3])
-        target_v_x = action[4] * self.max_v
-        target_v_y = action[5] * self.max_v
+        target_v_x = action[0] * self.max_v
+        target_v_y = action[1] * self.max_v
+        target_k_p = max(0, action[4] * 15)
+        target_angle = target_k_p * np.arctan2(action[2], action[3])
 
-        if self.view is not None:
-            self.view.add_command(target_x, target_y, target_angle)
+        move = RobotMove(
+            velocity=Point2D(target_v_x, target_v_y),
+            angular_velocity=target_angle
+        )
 
-        entry: GoToPointEntry = GoToPointEntry()
-        entry.target = Point2D(target_x * 1000.0, target_y * 1000.0)  # m to mm
-        entry.target_angle = target_angle
-        entry.target_velocity = Point2D(target_v_x * 1000.0, target_v_y * 1000.0)
-        entry.using_prop_velocity = True
-
-        robot = self.frame.robots_blue[0]
-        angle = np.deg2rad(robot.theta)
-        position = Point2D(x=robot.x * 1000.0, y=robot.y * 1000.0)
-
-        result_global = go_to_point(agent_position=position,
-                             agent_angle=angle,
-                             entry=entry)
-        
-        v_x, v_y, v_theta = self.convert_actions(result_global, angle)
+        v_x, v_y, v_theta = self.convert_actions(move, target_angle)
 
         return [
             Robot(
