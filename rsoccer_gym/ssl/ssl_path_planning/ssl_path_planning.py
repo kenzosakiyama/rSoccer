@@ -1,7 +1,7 @@
 import random
 from rsoccer_gym.Render.Render import RCGymRender
 
-from rsoccer_gym.ssl.ssl_path_planning.navigation import Point2D, GoToPointEntry, go_to_point, abs_smallest_angle_diff, dist_to, length
+from rsoccer_gym.ssl.ssl_path_planning.navigation import Point2D, GoToPointEntry, RobotMove, go_to_point, abs_smallest_angle_diff, dist_to, length
 
 import gym
 import numpy as np
@@ -109,12 +109,26 @@ class SSLPathPlanningEnv(SSLBaseEnv):
 
         return np.array(observation, dtype=np.float32)
 
-    def _get_commands(self, action):
-        field_half_length = self.field.length / 2  # x
-        field_half_width = self.field.width / 2    # y
+    def convert_actions(self, move: RobotMove, angle):
+        """Convert to local"""
+        v_x = move.velocity.x
+        v_y = move.velocity.y
+        v_theta = move.angular_velocity
 
-        target_x = action[0] * field_half_length
-        target_y = action[1] * field_half_width
+        # Convert to local
+        v_x, v_y = v_x*np.cos(angle) + v_y*np.sin(angle),\
+            -v_x*np.sin(angle) + v_y*np.cos(angle)
+
+        # clip by max absolute
+        v_norm = np.linalg.norm([v_x,v_y])
+        c = v_norm < self.max_v or self.max_v / v_norm
+        v_x, v_y = v_x*c, v_y*c
+        
+        return v_x, v_y, v_theta
+
+    def _get_commands(self, action):
+        target_x = action[0] * self.max_pos
+        target_y = action[1] * self.max_pos
         target_angle = np.arctan2(action[2], action[3])
         target_v_x = action[4] * self.max_v
         target_v_y = action[5] * self.max_v
@@ -129,17 +143,19 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         angle = np.deg2rad(robot.theta)
         position = Point2D(x=robot.x * 1000.0, y=robot.y * 1000.0)
 
-        result = go_to_point(agent_position=position,
+        result_global = go_to_point(agent_position=position,
                              agent_angle=angle,
                              entry=entry)
+        
+        v_x, v_y, v_theta = self.convert_actions(result_global, angle)
 
         return [
             Robot(
                 yellow=False,
                 id=0,
-                v_x=result.velocity.x,
-                v_y=result.velocity.y,
-                v_theta=result.angular_velocity
+                v_x=v_x,
+                v_y=v_y,
+                v_theta=v_theta
             )
         ]
 
