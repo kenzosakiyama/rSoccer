@@ -12,6 +12,7 @@ from rsoccer_gym.Utils import KDTree
 ANGLE_TOLERANCE: float = np.deg2rad(7.5) # 7.5 degrees
 SPEED_TOLERANCE: float = 0.20 # m/s == 20 cm/s
 DIST_TOLERANCE: float = 0.10 # m == 10 cm
+ANGULAR_SPEED_TOLERANCE: float = 5 # 5 rad/s
 
 class SSLPathPlanningEnv(SSLBaseEnv):
     """The SSL robot needs to reach the target point with a given angle"""
@@ -168,6 +169,9 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         angle_reward = 0.125 * (last_angle_error - angle_error) / np.pi
         dist_reward = 0.75 * (last_dist_robot_to_target - dist_robot_to_target) / max_dist
         velocity_reward = 0.125 * (last_robot_velocity_to_target - robot_velocity_to_target) / self.max_v
+        
+        angular_velocity = self.frame.robots_blue[0].v_theta
+        angular_velocity_to_target = abs(angular_velocity)
 
         self.reward_info['dist_error'] = dist_robot_to_target
         self.reward_info['angle_error'] = angle_error
@@ -187,7 +191,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
             self.reward_info['total_reward'] += velocity_reward
             self.reward_info['cumulative_velocity_reward'] += velocity_reward
 
-            if robot_velocity_to_target <= SPEED_TOLERANCE:
+            if robot_velocity_to_target <= SPEED_TOLERANCE and angular_velocity_to_target <= ANGULAR_SPEED_TOLERANCE:
                 return angle_reward, angle_error <= ANGLE_TOLERANCE
 
             return angle_reward + velocity_reward, False
@@ -234,7 +238,10 @@ class SSLPathPlanningEnv(SSLBaseEnv):
             return random.uniform(0, 360)
         
         def get_random_speed():
-            return random.uniform(0, self.max_v)
+            return random.uniform(0, 2.2)
+        
+        def get_random_w():
+            return random.uniform(0, 9)
 
         pos_frame: Frame = Frame()
 
@@ -268,8 +275,13 @@ class SSLPathPlanningEnv(SSLBaseEnv):
                 pos = (get_random_x(), get_random_y())
 
             places.insert(pos)
+
+            speed = get_random_speed()
+            vel_angle = get_random_theta()
+            vel = (speed * np.cos(vel_angle), speed * np.sin(vel_angle))
+
             pos_frame.robots_blue[i] = Robot(id=i, yellow=False,
-                                             x=pos[0], y=pos[1], theta=get_random_theta())
+                                             x=pos[0], y=pos[1], v_x=vel[0], v_y=vel[1], v_theta=get_random_w(), theta=get_random_theta())
 
         for i in range(self.n_robots_yellow):
             pos = (get_random_x(), get_random_y())
