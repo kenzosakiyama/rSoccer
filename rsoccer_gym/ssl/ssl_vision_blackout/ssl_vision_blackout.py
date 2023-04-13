@@ -66,11 +66,12 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
             self.using_log_data = False
 
         if self.using_vision_frames:
-            self.embedded_vision = JetsonVision(
-                                    vertical_lines_nr=vertical_lines_nr, 
-                                    enable_field_detection=True,
-                                    enable_randomized_observations=True)
-            self.embedded_vision.jetson_cam.setPoseFrom3DModel(170, 106.7)
+            self.embedded_vision = JetsonVision(vertical_lines_nr=vertical_lines_nr, 
+                                                enable_field_detection=True,
+                                                enable_randomized_observations=True)
+            self.embedded_vision.jetson_cam.setPoseFrom3DModel(170, 106.7, 0)
+            #self.embedded_vision.jetson_cam.setPoseFrom3DModel(170, 107.2)
+
             self.img = np.zeros((480, 640, 3), dtype=np.uint8)
             self.has_goal = False
             self.goal_bbox = [0, 0, 0, 0]

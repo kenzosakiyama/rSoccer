@@ -23,13 +23,15 @@ def get_image_from_frame_nr(path_to_images_folder, frame_nr):
     return img
 
 def get_point_from_vision_process(robot_vision, img, has_goal, goal):
+    if has_goal:
+        print("FRAME HAS GOAL")
+        cv2.rectangle(img, (int(goal[0]+1), int(goal[2]+1)), (int(goal[1]-1), int(goal[3]-1)), color=(0,255,0))
+
     _, _, tracked_goal, _, particle_filter_observations = robot_vision.process_from_log(src=img, 
                                                                                     timestamp=time.time(), 
                                                                                     has_goal=has_goal, 
                                                                                     goal_bounding_box=goal)
-    if has_goals[i]:
-        cv2.rectangle(img, (int(goal[0]+1), int(goal[2]+1)), (int(goal[1]-1), int(goal[3]-1)), color=(0,255,0))
-        print("FRAME HAS GOAL")
+
 
     goal = robot_vision.jetson_cam.xyToPolarCoordinates(tracked_goal.center_x, tracked_goal.center_y)
     boundary_ground_points, _ = particle_filter_observations
@@ -65,9 +67,9 @@ if __name__ == "__main__":
 
     cwd = os.getcwd()
 
-    debug = False
+    debug = True
 
-    step = 10
+    step = 1
     vertical_lines_nr=1
     robot_vision = JetsonVision(
                             vertical_lines_nr=vertical_lines_nr, 
@@ -98,7 +100,7 @@ if __name__ == "__main__":
 
         # LOAD REAL POSITION DATA
         position = data.get_position()
-        for i in range(0, len(frames), step):
+        for i in range(1700, len(frames), step):
 
             # MAKE ROBOT OBSERVATION
             img = get_image_from_frame_nr(path, frames[i])
@@ -136,8 +138,6 @@ if __name__ == "__main__":
         write = csv.writer(f)
         write.writerow(fields)
         write.writerows(errors_log)
-    
-    #TODO: analisar os dados -> plotar distribuição do erro com base na distância
-                     
+                         
     
     

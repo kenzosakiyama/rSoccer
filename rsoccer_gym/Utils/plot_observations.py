@@ -54,8 +54,8 @@ def get_proportions_from_data(expected_distances, measured_distances):
 
 def get_errors_from_data(expected_distances, measured_distances):
     errors = []
-    for i in range(0, len(expected_distances)):
-        error = measured_distances[i] - expected_distances[i]
+    for (expected_distance, measured_distance) in zip(expected_distances, measured_distances):
+        error = measured_distance - expected_distance
         errors.append(error)
         #if abs(error)<9: 
         #    errors.append(error)
@@ -64,25 +64,44 @@ def get_errors_from_data(expected_distances, measured_distances):
     
     return errors
 
-def set_histogram_plot(axis, errors):
+def get_percentual_errors_from_data(expected_distances, measured_distances):
+    errors = []
+    for (expected_distance, measured_distance) in zip(expected_distances, measured_distances):
+        error = (measured_distance - expected_distance)/expected_distance
+        errors.append(error)
+        #if abs(error)<9: 
+        #    errors.append(error)
+        #else:
+        #    errors.append(100)
+    
+    return errors
+
+def set_histogram_plot(axis, errors, percentual=False):
     axis.set_title("Error Distribution")
     axis.set_ylabel("Probability")
-    axis.set_xlabel("Error (m)")
+    axis.set_xlabel("Error")
 
     xs = []
     for error in errors:
-        if abs(error)<10: xs.append(error)
+        if abs(error)<10: 
+            xs.append(error)
 
     mn, mx = min(xs), max(xs)
     q25, q75 = np.percentile(xs, [25, 75])
     bin_width = 2 * (q75 - q25) * len(xs) ** (-1/3)
     bins = round((mx - mn) / bin_width)
-    axis.hist(errors, density=True, bins=bins, label="Histogram")
+    #if percentual:
+    #    axis.hist(errors, density=True, bins=bins, label="Percentual")
+    #else:
+    #    axis.hist(errors, density=True, bins=bins, label="Absolute")
     print("Freedman-Diaconis number of bins:", bins)
 
     kde_xs = np.linspace(mn, mx, 300)
     kde = st.gaussian_kde(xs)
-    axis.plot(kde_xs, kde.pdf(kde_xs), label="PDF")
+    if percentual:
+        axis.plot(kde_xs, kde.pdf(kde_xs), label="Percentual")
+    else:
+        axis.plot(kde_xs, kde.pdf(kde_xs), label="Absolute")
     axis.legend(loc="upper left")
 
     xlim = max([abs(mn), abs(mx)])
@@ -91,20 +110,23 @@ def set_histogram_plot(axis, errors):
     axis.set_xticks(xticks)
     axis.grid(True)
 
-def set_error_plot(axis, errors, distances):
+def set_error_plot(axis, errors, distances, percentual=False):
     axis.set_title("Error Size by Distance")
-    axis.set_ylabel("Error Norm (m)")
-    axis.set_xlabel("Distance (m)")
+    axis.set_ylabel("Error")
+    axis.set_xlabel("Measured Distance (m)")
 
     xs = []
     ys = []
     for error, distance in zip(errors, distances):
-        if abs(error)<5:
+        if abs(error)<0.5:
             xs.append(distance)
-            ys.append(abs(error))
+            ys.append(error)
 
-    axis.scatter(xs, ys)
-
+    if percentual:
+        axis.scatter(xs, ys, label='Percentual', marker='D')
+    else:
+        axis.scatter(xs, ys, label='Absolute')
+    axis.legend(loc="upper left")
 
 if __name__ == "__main__":
 
@@ -117,16 +139,19 @@ if __name__ == "__main__":
 
     errors = get_errors_from_data(expected_distance, measured_distance)
 
+    percentual_errors = get_percentual_errors_from_data(expected_distance, measured_distance)
+
     if HISTOGRAM:
         import scipy.stats as st
 
         fig = plt.figure(figsize=(10, 10))
         ax1, ax2 = fig.subplots(nrows=2, ncols=1)
 
-        set_histogram_plot(ax1, errors)
-        set_error_plot(ax2, errors, measured_distance)
+        #set_histogram_plot(ax1, errors, False)
+        set_histogram_plot(ax1, percentual_errors, True)
+        #set_error_plot(ax2, errors, measured_distance, False)
+        set_error_plot(ax2, percentual_errors, measured_distance, True)
 
-    
     else:
         fig = plt.figure(figsize=(15, 8))
         ax = fig.subplots(nrows=1, ncols=1)

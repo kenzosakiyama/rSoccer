@@ -483,12 +483,10 @@ class Camera():
         points2d: pixel positions on image
         """
         #points3d = self.fixPoints3d(points3d=points3d)
-        _,rvec,tvec=cv2.solvePnP(
-                                points3d,
-                                points2d,
-                                self.intrinsic_parameters,
-                                self.distortion_parameters
-                                )
+        _,rvec,tvec=cv2.solvePnP(points3d,
+                                 points2d,
+                                 self.intrinsic_parameters,
+                                 self.distortion_parameters)
 
         rmtx, jacobian=cv2.Rodrigues(rvec)
         
@@ -556,8 +554,8 @@ class Camera():
 
         return tvec, rmtx
 
-    def setPoseFrom3DModel(self, height, angle):
-        camera_position = np.array([[0], [0], [height]])
+    def setPoseFrom3DModel(self, height, angle, center_offset=0):
+        camera_position = np.array([[0], [center_offset], [height]])
         euler_angles = np.array([[angle], [0], [0]])
         self.setPoseFromFile(camera_position, euler_angles)
 

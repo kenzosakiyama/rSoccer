@@ -179,7 +179,12 @@ class JetsonVision():
         line_ground_points = []
         
         return boundary_ground_points, line_ground_points
-
+    def checkGroundPointValidity(self, dist, theta ):
+        if dist>8 or abs(theta)>40: 
+            print("invalid ground point")
+            return False
+        else: return True
+        
     def trackGroundPoints(self, src, points):
         ground_points = []
         for point in points:
@@ -189,7 +194,9 @@ class JetsonVision():
                 src[pixel_y, pixel_x] = self.field_detector.RED
                 cv2.drawMarker(src, (pixel_x, pixel_y), color=self.field_detector.RED)
             x, y, w = self.jetson_cam.pixelToRobotCoordinates(pixel_x=pixel_x, pixel_y=pixel_y, z_world=0)
-            ground_points.append([x, y, w])
+            dist, theta = self.jetson_cam.xyToPolarCoordinates(x, y)
+            if self.checkGroundPointValidity(dist, theta):
+                ground_points.append([x, y, w])
 
         return ground_points 
 
@@ -255,7 +262,8 @@ class JetsonVision():
         else:
             class_id, score, xmin, xmax, ymin, ymax = 2, has_goal, goal_bounding_box[0], goal_bounding_box[1], goal_bounding_box[2], goal_bounding_box[3]
             detection = [class_id, score, xmin, xmax, ymin, ymax]
-            detections.append(detection)
+            if score>0.5:
+                detections.append(detection)
 
         # 42ms with field lines detection, 8~9ms without it
         if self.has_field_detection:
@@ -284,7 +292,7 @@ if __name__ == "__main__":
 
     cwd = os.getcwd()
 
-    frame_nr = 44
+    frame_nr = 2200
     quadrado_nr = 1
 
     vision = JetsonVision(

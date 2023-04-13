@@ -8,6 +8,7 @@ class Read:
         self.frames = []
         self.odometry = []
         self.position = []
+        self.speed = []
         self.has_goal = []
         self.goal_bounding_box = []
         self.timestamps = []
@@ -23,9 +24,10 @@ class Read:
                     self.robotId = row[1]
                     self.odometry.append([float(row[2]), float(row[3]), float(row[4])])
                     self.position.append([float(row[5]), float(row[6]), float(row[7])])
-                    self.has_goal.append(bool(row[8]))
-                    self.goal_bounding_box.append([float(row[9]), float(row[10]), float(row[11]), float(row[12])])
-                    self.timestamps.append(float(row[13]))
+                    self.speed.append([float(row[8]), float(row[9]), float(row[10])])
+                    self.has_goal.append(True if row[11]=='True' else False)
+                    self.goal_bounding_box.append([float(row[12]), float(row[13]), float(row[14]), float(row[15])])
+                    self.timestamps.append(float(row[16]))
                     line_count += 1
 
     def get_odometry(self):
@@ -43,7 +45,13 @@ class Read:
 
     def get_position_2d(self):
         return np.array(self.position)[:,0:2]
+    
+    def get_speed(self):
+        return np.array(self.speed)
 
+    def get_speed_2d(self):
+        return np.array(self.speed)[:,0:2]
+    
     def get_position_vectors(self):
         vis = self.get_position()
         return np.array([vis[:, 0] + np.cos(vis[:, 2]), vis[:, 1] + np.sin(vis[:, 2])]).T
@@ -58,11 +66,7 @@ class Read:
         return np.array(self.timestamps)
     
     def get_has_goals(self):
-        has_goals = []
-        for goal in self.goal_bounding_box:
-            if goal == [0, 0, 0, 0]: has_goals.append(False)
-            else: has_goals.append(True)
-        return has_goals
+        return np.array(self.has_goal)
     
     def get_goals(self):
         return np.array(self.goal_bounding_box)
@@ -134,6 +138,19 @@ class Read:
         timesteps = self.get_timesteps()
         return np.mean(timesteps)
         
+def test_odometry_movements_reader(data):
+    odometry_movements = data.get_odometry_movement(degrees=True)
+    for i in range(1, len(odometry_movements)):
+        movement = odometry_movements[i]
+        if movement[2]>0: 
+            print(movement[2], data.frames[i])    
+
+def test_has_goal_reader(data):
+    frames = data.get_frames()
+    has_goals = data.get_has_goals()
+    for (has_goal, frame_nr) in zip(has_goals, frames):
+        print(has_goal, frame_nr)
+
 if __name__ == "__main__":
     import os
 
@@ -143,10 +160,7 @@ if __name__ == "__main__":
     path = cwd+f'/localization_data/quadrado{quadrado_nr}/log.csv'
     data = Read(path)
 
-    odometry_movements = data.get_odometry_movement(degrees=True)
-    for i in range(1, len(odometry_movements)):
-        movement = odometry_movements[i]
-        if movement[2]>180: 
-            print(movement[2], data.frames[i])
+    #test_odometry_movements_reader(data)
+    test_has_goal_reader(data)
 
 

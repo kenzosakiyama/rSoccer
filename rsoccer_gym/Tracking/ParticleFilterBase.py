@@ -22,13 +22,17 @@ class Particle:
     def __init__(
                 self,
                 initial_state = [0, 0, 0],
-                weight = 1
+                weight = 1,
+                movement_deviation = [1, 1, 1]
                 ):
         self.state = initial_state
         self.x = self.state[0]
         self.y = self.state[1]
         self.theta = ((self.state[2] + 180) % 360) - 180
         self.weight = weight
+
+        # standard deviation for movements
+        self.movement_deviation = movement_deviation
 
     def from_weighted_sample(self, sample):
         self.__init__(weight=sample[0], initial_state=sample[1])
@@ -62,7 +66,7 @@ class Particle:
 
     def add_move_noise(self, movement):
         movement_abs = [np.abs(movement[0]), np.abs(movement[1]), np.abs(movement[2])]
-        standard_deviation_vector = [1, 1, 0.5]*np.array(movement_abs)
+        standard_deviation_vector = self.movement_deviation*np.array(movement_abs)
 
         return np.random.normal(movement, standard_deviation_vector, 3).tolist()
 
@@ -135,7 +139,9 @@ class ParticleFilter:
             orientation = np.random.uniform(0, 360)
             x = seed_x + radius*math.cos(direction)
             y = seed_y + radius*math.sin(direction)
-            particle = Particle(initial_state=[x, y, orientation], weight=weight)
+            particle = Particle(initial_state=[x, y, orientation], 
+                                weight=weight, 
+                                movement_deviation = self.process_noise)
             particles.append(particle)
         
         self.particles = particles
@@ -155,7 +161,8 @@ class ParticleFilter:
                     np.random.uniform(self.x_min, self.x_max),
                     np.random.uniform(self.y_min, self.y_max),
                     np.random.uniform(-180, 180)],
-                    weight=weight)
+                    weight=weight,
+                    movement_deviation = self.process_noise)
 
             particles.append(particle)
         
@@ -181,11 +188,15 @@ class ParticleFilter:
         weight = 1.0 / self.n_particles
         for i in range(self.n_particles):
             initial_state = np.random.normal(mean_vector, standard_deviation_vector, self.state_dimension).tolist()
-            particle = Particle(initial_state=initial_state, weight=weight)
+            particle = Particle(initial_state=initial_state, 
+                                weight=weight,
+                                movement_deviation = self.process_noise)
             while particle.is_out_of_field(x_min=self.x_min, x_max=self.x_max, y_min=self.y_min, y_max=self.y_max):
                 # Get state sample
                 initial_state = np.random.normal(mean_vector, standard_deviation_vector, self.state_dimension).tolist()
-                particle = Particle(initial_state=initial_state, weight=weight)
+                particle = Particle(initial_state=initial_state, 
+                                    weight=weight,
+                                    movement_deviation = self.process_noise)
 
             # Add particle i
             self.particles.append(particle)
@@ -362,7 +373,7 @@ class ParticleFilter:
             particle_goal, particle_boundary_points = self.compute_observation(particle)
             
             # Compute similarity from field boundary points
-            likelihood_sample *= self.compute_boundary_points_similarity(6.25, robot_field_points, particle_boundary_points)
+            likelihood_sample *= self.compute_boundary_points_similarity(10, robot_field_points, particle_boundary_points)
 
             # Compute similarity from goal center
             likelihood_sample *= self.compute_goal_similarity(0, 10, robot_goal, particle_goal)
@@ -392,9 +403,10 @@ class ParticleFilter:
         weight = self.compute_likelihood(robot_goal, robot_field_points, avg_particle)
         self.average_particle_weight = weight
         pxx = self.compute_covariance(avg_particle.state)
-        #if pxx<0.1:
-            #print("Robot localization was found")
-        #    import pdb;pdb.set_trace()
+        #print(f'pxx: {pxx}')
+        #if pxx>0.005:
+        #    return True
+        
         if weight<0.5:
             return True
 

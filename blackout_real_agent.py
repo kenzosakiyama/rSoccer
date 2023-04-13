@@ -1,7 +1,7 @@
 import gym
 import numpy as np
 import cv2
-from rsoccer_gym.Tracking.ParticleFilterBase import ParticleFilter
+from rsoccer_gym.Tracking.ParticleFilterBase import ParticleFilter, Particle
 from rsoccer_gym.Tracking import ResamplingAlgorithms
 from rsoccer_gym.Plotter.Plotter import RealTimePlotter
 
@@ -34,7 +34,7 @@ if __name__ == "__main__":
     import time
     cwd = os.getcwd()
 
-    n_particles = 10
+    n_particles = 100
     vertical_lines_nr = 1
 
     # LOAD REAL ODOMETRY DATA
@@ -79,12 +79,14 @@ if __name__ == "__main__":
     # movements list
     odometry = data.get_odometry()
     odometry_movements = data.get_odometry_movement(degrees=True)
+    odometry_particle = Particle(initial_state=initial_position,
+                                 movement_deviation=[0, 0, 0])
 
     counter = 0
 
     ax_titles = ["RMSE",
-                "Similarity from Particles Filter Median Particle",
-                "Non-normalized Weights Sum"]
+                 "Similarity from Particles Filter Median Particle",
+                 "Non-normalized Weights Sum"]
     plotter = RealTimePlotter(n_plots=3, 
                               max_size=len(position),
                               titles=ax_titles)
@@ -92,18 +94,21 @@ if __name__ == "__main__":
     while env.steps<len(position)-1:
         img = get_image_from_frame_nr(path, frames[env.steps])
         env.update_img(img, has_goals[env.steps], goals[env.steps])
-        robot_x, robot_y, robot_w = odometry[env.steps]
         action = position[env.steps]
         measurements, _, _, _ = env.step(action)
         movement, goal, field_points = parse_particle_filter_data(measurements,
                                                                   odometry_movements[env.steps],
-                                                                  robot_w,
+                                                                  odometry[env.steps][2],
                                                                   data)
         robot_tracker.update(movement, goal, field_points)
-        odometry_tracking = [robot_x + initial_position[0], robot_y + initial_position[1], np.rad2deg(robot_w) + initial_position[2]]
+        odometry_particle.move(movement)
         particles_filter_tracking = robot_tracker.get_average_state()         
-        env.update_particles(robot_tracker.particles, odometry_tracking, particles_filter_tracking, time_steps[env.steps])
-        RMSE = np.sqrt((particles_filter_tracking[0]-position[env.steps][0])**2 + (particles_filter_tracking[1]-position[env.steps][1])**2)
+        env.update_particles(robot_tracker.particles, 
+                             odometry_particle.state,
+                             particles_filter_tracking, 
+                             time_steps[env.steps])
+        RMSE = np.sqrt((particles_filter_tracking[0]-position[env.steps][0])**2 + \
+                        (particles_filter_tracking[1]-position[env.steps][1])**2)
         covariance = robot_tracker.compute_covariance(particles_filter_tracking)
         env.render()
         if counter<0:
@@ -114,3 +119,4 @@ if __name__ == "__main__":
         plotter.add_data(env.steps, _ys)
 
     plotter.kill_process()
+print("finished")
