@@ -1,7 +1,7 @@
 import os
 
 import numpy as np
-from rsoccer_gym.Entities import Frame, Field
+from rsoccer_gym.Entities import Frame, Field, Robot
 from gym.envs.classic_control import rendering
 from typing import Dict, List, Tuple
 
@@ -44,6 +44,9 @@ class RCGymRender:
 
         n_particles : int
             Number of particles from Monte Carlo Localization
+        
+        n_trackers: int
+            Number of tracking algorithms
 
         field_params : Field
             field parameters
@@ -65,18 +68,17 @@ class RCGymRender:
         self.blue_robots: List[rendering.Transform] = []
         self.yellow_robots: List[rendering.Transform] = []
         self.particles: List[rendering.Transform] = []
+        self.trackers: List[rendering.Transform] = []
         '''
         tracker[0]: odometry data
         tracker[1]: monte carlo localization (MCL) weighted mean pose
         '''
-        self.trackers: List[rendering.Transform] = []
-
         # Window dimensions in pixels
         screen_width = width
         screen_height = height
 
         # Window margin
-        margin = 0.05 if simulator == "vss" else 0.35
+        margin = 0.35
         # Half field width
         h_len = (self.field.length + 2*self.field.goal_depth) / 2
         # Half field height
@@ -101,22 +103,14 @@ class RCGymRender:
         # add background
         self._add_background()
 
-        if simulator == "vss":
-            # add field_lines
-            self._add_field_lines_vss()
-
-            # add robots
-            self._add_vss_robots()
-
-        if simulator == "ssl":
-            # add field_lines
-            self._add_field_lines_ssl()
-            # add robots
-            self._add_ssl_robots()
-            # add filter particles
-            self._add_particles()
-            # add trackers
-            self._add_trackers()     
+        # add field_lines
+        self._add_field_lines_ssl()
+        # add robots
+        self._add_ssl_robots()
+        # add filter particles
+        self._add_particles()
+        # add trackers
+        self._add_trackers()    
 
         # add ball
         self._add_ball()
@@ -177,184 +171,6 @@ class RCGymRender:
         back_ground.set_color(*BLACK)
         self.screen.add_geom(back_ground)
 
-    #----------VSS-----------#
-    
-    def _add_field_lines_vss(self) -> None:
-        # Vertical Lines X
-        x_border = self.field.length / 2
-        x_goal = x_border + self.field.goal_depth
-        x_penalty = x_border - self.field.penalty_length
-        x_center = 0
-
-        # Horizontal Lines Y
-        y_border = self.field.width / 2
-        y_penalty = self.field.penalty_width / 2
-        y_goal = self.field.goal_width / 2
-        
-        # Corners Angle offset
-        corner = 0.07
-
-        # add field borders
-        field_border_points = [
-            (x_border-corner, y_border),
-            (x_border, y_border-corner),
-            (x_border, -y_border+corner),
-            (x_border-corner, -y_border),
-            (-x_border+corner, -y_border),
-            (-x_border, -y_border+corner),
-            (-x_border, y_border-corner),
-            (-x_border+corner, y_border)
-        ]
-        field_bg = rendering.FilledPolygon(field_border_points)
-        field_bg.set_color(60/255,60/255,60/255)
-        
-        field_border = rendering.PolyLine(field_border_points, close=True)
-        field_border.set_linewidth(self.linewidth)
-        field_border.set_color(*LINES_WHITE)
-
-        # Center line and circle
-        center_line = rendering.Line(
-            (x_center, y_border), (x_center, -y_border))
-        center_line.linewidth.stroke = self.linewidth
-        center_line.set_color(*LINES_WHITE)
-        center_circle = rendering.make_circle(0.2, filled=False)
-        center_circle.linewidth.stroke = self.linewidth
-        center_circle.set_color(*LINES_WHITE)
-
-        # right side penalty box
-        penalty_box_right_points = [
-            (x_border, y_penalty),
-            (x_penalty, y_penalty),
-            (x_penalty, -y_penalty),
-            (x_border, -y_penalty)
-        ]
-        penalty_box_right = rendering.PolyLine(
-            penalty_box_right_points, close=False)
-        penalty_box_right.set_linewidth(self.linewidth)
-        penalty_box_right.set_color(*LINES_WHITE)
-
-        # left side penalty box
-        penalty_box_left_points = [
-            (-x_border, y_penalty),
-            (-x_penalty, y_penalty),
-            (-x_penalty, -y_penalty),
-            (-x_border, -y_penalty)
-        ]
-        penalty_box_left = rendering.PolyLine(
-            penalty_box_left_points, close=False)
-        penalty_box_left.set_linewidth(self.linewidth)
-        penalty_box_left.set_color(*LINES_WHITE)
-
-        # Right side goal line
-        goal_line_right_points = [
-            (x_border, y_goal),
-            (x_goal, y_goal),
-            (x_goal, -y_goal),
-            (x_border, -y_goal)
-        ]
-        goal_bg_right = rendering.FilledPolygon(goal_line_right_points)
-        goal_bg_right.set_color(60/255,60/255,60/255)
-        
-        goal_line_right = rendering.PolyLine(
-            goal_line_right_points, close=False)
-        goal_line_right.set_linewidth(self.linewidth)
-        goal_line_right.set_color(*LINES_WHITE)
-
-        # Left side goal line
-        goal_line_left_points = [
-            (-x_border, y_goal),
-            (-x_goal, y_goal),
-            (-x_goal, -y_goal),
-            (-x_border, -y_goal)
-        ]
-        goal_bg_left = rendering.FilledPolygon(goal_line_left_points)
-        goal_bg_left.set_color(60/255,60/255,60/255)
-        
-        goal_line_left = rendering.PolyLine(goal_line_left_points, close=False)
-        goal_line_left.set_linewidth(self.linewidth)
-        goal_line_left.set_color(*LINES_WHITE)
-
-        self.screen.add_geom(field_bg)
-        self.screen.add_geom(goal_bg_right)
-        self.screen.add_geom(goal_bg_left)
-        self.screen.add_geom(field_border)
-        self.screen.add_geom(center_line)
-        self.screen.add_geom(center_circle)
-        self.screen.add_geom(penalty_box_right)
-        self.screen.add_geom(penalty_box_left)
-        self.screen.add_geom(goal_line_right)
-        self.screen.add_geom(goal_line_left)
-
-    def _add_vss_robots(self) -> None:
-        tag_id_colors: Dict[int, Tuple[float, float, float]] = {
-            0 : TAG_GREEN,
-            1 : TAG_PURPLE,
-            2 : TAG_RED
-        }
-        
-        # Add blue robots
-        for id in range(self.n_robots_blue):
-            self.blue_robots.append(
-                self._add_vss_robot(team_color=TAG_BLUE, id_color=tag_id_colors[id])
-            )
-            
-        # Add yellow robots
-        for id in range(self.n_robots_yellow):
-            self.yellow_robots.append(
-                self._add_vss_robot(team_color=TAG_YELLOW, id_color=tag_id_colors[id])
-            )
-
-    def _add_vss_robot(self, team_color, id_color) -> rendering.Transform:
-        robot_transform:rendering.Transform = rendering.Transform()
-        
-        # Robot dimensions
-        robot_x: float = self.field.rbt_radius * 2
-        robot_y: float = self.field.rbt_radius * 2
-        # Tag dimensions
-        tag_x: float = 0.030
-        tag_y: float = 0.065
-        tag_x_offset: float = (0.065 / 2) / 2
-        
-        # Robot vertices (zero at center)
-        robot_vertices: List[Tuple[float,float]]= [
-            (robot_x/2, robot_y/2),
-            (robot_x/2, -robot_y/2),
-            (-robot_x/2, -robot_y/2),
-            (-robot_x/2, robot_y/2)
-        ]
-        # Tag vertices (zero at center)
-        tag_vertices: List[Tuple[float,float]]= [
-            (tag_x/2, tag_y/2),
-            (tag_x/2, -tag_y/2),
-            (-tag_x/2, -tag_y/2),
-            (-tag_x/2, tag_y/2)
-        ]
-        
-        # Robot object
-        robot = rendering.FilledPolygon(robot_vertices)
-        robot.set_color(*ROBOT_BLACK)
-        robot.add_attr(robot_transform)
-
-        # Team tag object
-        team_tag = rendering.FilledPolygon(tag_vertices)
-        team_tag.set_color(*team_color)
-        team_tag.add_attr(rendering.Transform(translation=(tag_x_offset, 0)))
-        team_tag.add_attr(robot_transform)
-        
-        # Id tag object
-        id_tag = rendering.FilledPolygon(tag_vertices)
-        id_tag.set_color(*id_color)
-        id_tag.add_attr(rendering.Transform(translation=(-tag_x_offset, 0)))
-        id_tag.add_attr(robot_transform)
-
-        # Add objects to screen
-        self.screen.add_geom(robot)
-        self.screen.add_geom(team_tag)
-        self.screen.add_geom(id_tag)
-
-        # Return the transform class to change robot position
-        return robot_transform
-
     #----------SSL-----------#
     
     def _add_field_lines_ssl(self) -> None:
@@ -373,10 +189,10 @@ class RCGymRender:
 
         # add outside field borders
         field_outer_border_points = [
-            (x_border+field_margin, y_border+field_margin),
-            (x_border+field_margin, -y_border-field_margin),
-            (-x_border-field_margin, -y_border-field_margin),
-            (-x_border-field_margin, y_border+field_margin)
+            (self.field.x_max, self.field.y_max),
+            (self.field.x_max, self.field.y_min),
+            (self.field.x_min, self.field.y_min),
+            (self.field.x_min, self.field.y_max)
         ]
         field_bg = rendering.FilledPolygon(field_outer_border_points)
         field_bg.set_color(*BG_GREEN)

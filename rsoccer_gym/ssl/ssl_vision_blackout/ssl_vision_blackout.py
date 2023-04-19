@@ -43,7 +43,7 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
             Pose confidence is higher than threshold or 30 seconds (1200 steps)
     """
 
-    def __init__(self, initial_position=[], time_step=0.005, field_type=1, vertical_lines_nr=1, n_particles=0, using_vision_frames=False):
+    def __init__(self, initial_position=[], time_step=0.005, field_type=3, vertical_lines_nr=1, n_particles=0, using_vision_frames=False):
         super().__init__(field_type=field_type, 
                         n_robots_blue=1, 
                         n_robots_yellow=0, 
@@ -111,7 +111,7 @@ class SSLVisionBlackoutEnv(SSLBaseEnv):
         self.particles = particles
         self.trackers[0] = Particle(odometry_tracking, 0.2)
         self.trackers[1] = Particle(particle_filter_tracking, 0.2)
-        time.sleep(time_step)
+        #time.sleep(time_step)
 
     def update_step(self, step):
         self.steps = step

@@ -3,12 +3,16 @@ import csv
 import numpy as np
 
 class Read:
-    def __init__(self, path):
+    def __init__(self, 
+                 path, 
+                 degrees = False,
+                 is_raw = True):
         self.path = path
         self.frames = []
         self.odometry = []
         self.position = []
         self.speed = []
+        self.goal_in_fov = []
         self.has_goal = []
         self.goal_bounding_box = []
         self.timestamps = []
@@ -17,17 +21,29 @@ class Read:
             line_count = 0
             for row in csv_reader:
                 if line_count == 0:
-                    # print("Column names are ", ", ".join(row))
                     line_count += 1
                 else:
-                    self.frames.append(row[0])
+                    self.frames.append(int(row[0]))
                     self.robotId = row[1]
-                    self.odometry.append([float(row[2]), float(row[3]), float(row[4])])
-                    self.position.append([float(row[5]), float(row[6]), float(row[7])])
+                    if degrees:
+                        self.odometry.append([float(row[2]), float(row[3]), np.rad2deg(float(row[4]))])
+                    else:
+                        self.odometry.append([float(row[2]), float(row[3]), float(row[4])])
+
+                    if degrees:
+                        self.position.append([float(row[5]), float(row[6]), np.rad2deg(float(row[7]))])
+                    else:
+                        self.position.append([float(row[5]), float(row[6]), float(row[7])])
                     self.speed.append([float(row[8]), float(row[9]), float(row[10])])
-                    self.has_goal.append(True if row[11]=='True' else False)
-                    self.goal_bounding_box.append([float(row[12]), float(row[13]), float(row[14]), float(row[15])])
-                    self.timestamps.append(float(row[16]))
+                    if not is_raw:
+                        self.goal_in_fov.append(True if row[11]=='True' else False)
+                        self.has_goal.append(True if row[12]=='True' else False)
+                        self.goal_bounding_box.append([float(row[13]), float(row[14]), float(row[15]), float(row[16])])
+                        self.timestamps.append(float(row[17]))      
+                    else:
+                        self.has_goal.append(True if row[11]=='True' else False)
+                        self.goal_bounding_box.append([float(row[12]), float(row[13]), float(row[14]), float(row[15])])
+                        self.timestamps.append(float(row[16]))
                     line_count += 1
 
     def get_odometry(self):
@@ -65,8 +81,15 @@ class Read:
     def get_timestamps(self):
         return np.array(self.timestamps)
     
-    def get_has_goals(self):
-        return np.array(self.has_goal)
+    def get_has_goals(self, remove_false_positives = False):
+        has_goals = []
+        if remove_false_positives:
+            for (goal_in_fov, has_goal) in zip(self.goal_in_fov, self.has_goal):
+                has_goal = (has_goal and goal_in_fov)
+                has_goals.append(has_goal)
+            return np.array(has_goals)
+        else:
+            return np.array(self.has_goal)
     
     def get_goals(self):
         return np.array(self.goal_bounding_box)
@@ -154,13 +177,13 @@ def test_has_goal_reader(data):
 if __name__ == "__main__":
     import os
 
-    cwd = os.getcwd()
-
-    quadrado_nr = 15
-    path = cwd+f'/localization_data/quadrado{quadrado_nr}/log.csv'
-    data = Read(path)
-
-    #test_odometry_movements_reader(data)
-    test_has_goal_reader(data)
+    # CHOOSE SCENARIO
+    scenario = 'igs'
+    lap = 1
+    path = f'/home/rc-blackout/ssl-navigation-dataset/data/{scenario}_0{lap}'
+    path_to_log = path+'/logs/processed.csv'
+    data = Read(path_to_log, is_raw=False)
+    time_step_ms =  data.get_timesteps_average()
+    print(1/time_step_ms)
 
 

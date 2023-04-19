@@ -18,7 +18,7 @@ def set_field_limits(field):
     return field
 
 def get_image_from_frame_nr(path_to_images_folder, frame_nr):
-    dir = path_to_images_folder+f'/{frame_nr}.jpg'
+    dir = path_to_images_folder+f'/cam/{frame_nr}.png'
     img = cv2.imread(dir)
     return img
 
@@ -91,16 +91,16 @@ if __name__ == "__main__":
 
     for quadrado_nr in quadrados:
         # LOAD DATASET FROM REAL EXPERIMENTS
-        path = cwd+f'/localization_data/quadrado{quadrado_nr}'
-        path_to_log = path+'/log.csv'
-        data = Read(path_to_log)
+        path = cwd+f'/localization_data/sqr_02'
+        path_to_log = path+'/logs/processed.csv'
+        data = Read(path_to_log, is_raw=False)
         frames = data.get_frames()
-        has_goals = data.get_has_goals()
+        has_goals = data.get_has_goals(remove_false_positives=True)
         goals = data.get_goals()
 
         # LOAD REAL POSITION DATA
         position = data.get_position()
-        for i in range(1700, len(frames), step):
+        for i in range(0, len(frames), step):
 
             # MAKE ROBOT OBSERVATION
             img = get_image_from_frame_nr(path, frames[i])

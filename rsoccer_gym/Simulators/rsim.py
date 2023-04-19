@@ -2,7 +2,7 @@ import numpy as np
 import robosim
 
 from typing import Dict, List
-from rsoccer_gym.Entities import Frame, FrameVSS, FrameSSL, Field
+from rsoccer_gym.Entities import Frame, FrameSSL, Field
 
 
 class RSim:
@@ -85,44 +85,6 @@ class RSim:
         time_step_ms,
     ):
         raise NotImplementedError
-
-
-class RSimVSS(RSim):
-    def send_commands(self, commands):
-        sim_commands = np.zeros(
-            (self.n_robots_blue + self.n_robots_yellow, 2), dtype=np.float64)
-
-        for cmd in commands:
-            if cmd.yellow:
-                rbt_id = self.n_robots_blue + cmd.id
-            else:
-                rbt_id = cmd.id
-            sim_commands[rbt_id][0] = cmd.v_wheel0
-            sim_commands[rbt_id][1] = cmd.v_wheel1
-        self.simulator.step(sim_commands)
-
-    def get_frame(self) -> FrameVSS:
-        state = self.simulator.get_state()
-        # Update frame with new state
-        frame = FrameVSS()
-        frame.parse(state, self.n_robots_blue, self.n_robots_yellow)
-
-        return frame
-
-    def _init_simulator(self, field_type, n_robots_blue, n_robots_yellow,
-                        ball_pos, blue_robots_pos, yellow_robots_pos,
-                        time_step_ms):
-
-        return robosim.VSS(
-            field_type,
-            n_robots_blue,
-            n_robots_yellow,
-            time_step_ms,
-            ball_pos,
-            blue_robots_pos,
-            yellow_robots_pos,
-        )
-
 
 class RSimSSL(RSim):
     def send_commands(self, commands):

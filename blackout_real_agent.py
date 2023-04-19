@@ -17,7 +17,7 @@ def split_observation(measurements):
     return goal, np.array(vision_points)
 
 def get_image_from_frame_nr(path_to_images_folder, frame_nr):
-    dir = path_to_images_folder+f'/{frame_nr}.jpg'
+    dir = path_to_images_folder+f'/cam/{frame_nr}.png'
     img = cv2.imread(dir)
     return img
 
@@ -38,14 +38,16 @@ if __name__ == "__main__":
     vertical_lines_nr = 1
 
     # LOAD REAL ODOMETRY DATA
-    quadrado_nr = 15
-    path = cwd+f'/localization_data/quadrado{quadrado_nr}'
-    path_to_log = path+'/log.csv'
-    data = Read(path_to_log)
+    # CHOOSE SCENARIO
+    scenario = 'sqr'
+    lap = 2
+    path = f'/home/rc-blackout/ssl-navigation-dataset/data/{scenario}_0{lap}'
+    path_to_log = path+'/logs/processed.csv'
+    data = Read(path_to_log, is_raw=False)
     time_step_ms =  data.get_timesteps_average()
     time_steps = data.get_timesteps()
     frames = data.get_frames()
-    has_goals = data.get_has_goals()
+    has_goals = data.get_has_goals(remove_false_positives=True)
     goals = data.get_goals()
 
     # LOAD POSITION DATA
@@ -68,7 +70,7 @@ if __name__ == "__main__":
 
     robot_tracker = ParticleFilter(number_of_particles=n_particles, 
                                    field=env.field,
-                                   process_noise=[1, 1, 1],
+                                   process_noise=[1, 1, 0.1],
                                    measurement_noise=[1, 1],
                                    vertical_lines_nr=vertical_lines_nr,
                                    using_real_field=env.using_vision_frames,
@@ -84,12 +86,17 @@ if __name__ == "__main__":
 
     counter = 0
 
-    ax_titles = ["RMSE",
-                 "Similarity from Particles Filter Median Particle",
-                 "Non-normalized Weights Sum"]
-    plotter = RealTimePlotter(n_plots=3, 
-                              max_size=len(position),
-                              titles=ax_titles)
+    #ax_titles = ["RMSE",
+    #             "Similarity from Particles Filter Median Particle",
+    #             "Non-normalized Weights Sum"]
+    #plotter = RealTimePlotter(n_plots=3, 
+    #                          max_size=len(position),
+    #                          titles=ax_titles)
+
+    timestamps = data.get_timestamps()[:-2]
+    ground_truth_trajectory = data.get_position()[:-2]
+    odometry_trajectory = []
+    mcl_trajectory = []
 
     while env.steps<len(position)-1:
         img = get_image_from_frame_nr(path, frames[env.steps])
@@ -107,16 +114,27 @@ if __name__ == "__main__":
                              odometry_particle.state,
                              particles_filter_tracking, 
                              time_steps[env.steps])
-        RMSE = np.sqrt((particles_filter_tracking[0]-position[env.steps][0])**2 + \
-                        (particles_filter_tracking[1]-position[env.steps][1])**2)
-        covariance = robot_tracker.compute_covariance(particles_filter_tracking)
+        
+        # SAVE TRACKING DATA
+        odometry_trajectory.append([odometry_particle.state[0], odometry_particle.state[1], np.deg2rad(odometry_particle.state[2])])
+        mcl_trajectory.append([particles_filter_tracking[0], particles_filter_tracking[1], np.deg2rad(particles_filter_tracking[2])])
+
+        #RMSE = np.sqrt((particles_filter_tracking[0]-position[env.steps][0])**2 + \
+        #                (particles_filter_tracking[1]-position[env.steps][1])**2)
+        #covariance = robot_tracker.compute_covariance(particles_filter_tracking)
         env.render()
         if counter<0:
             env.update_step(0)
             counter += 1
 
-        _ys = [RMSE, robot_tracker.average_particle_weight, covariance]
-        plotter.add_data(env.steps, _ys)
+        #_ys = [RMSE, robot_tracker.average_particle_weight, covariance]
+        #plotter.add_data(env.steps, _ys)
+#
+#    plotter.kill_process()
+    
+    np.savetxt(path+'/logs/ground_truth_trajectory.txt', ground_truth_trajectory)
+    np.savetxt(path+'/logs/odometry_trajectory.txt', odometry_trajectory)
+    np.savetxt(path+'/logs/mcl_trajectory.txt', mcl_trajectory)
+    np.savetxt(path+'/logs/timestamps.txt', timestamps)
 
-    plotter.kill_process()
-print("finished")
+    print("finished")

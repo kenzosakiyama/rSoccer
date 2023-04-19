@@ -23,7 +23,7 @@ class Particle:
                 self,
                 initial_state = [0, 0, 0],
                 weight = 1,
-                movement_deviation = [1, 1, 1]
+                movement_deviation = [0.1, 0.1, 0.01]
                 ):
         self.state = initial_state
         self.x = self.state[0]
