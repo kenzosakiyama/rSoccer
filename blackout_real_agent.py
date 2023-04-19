@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
     robot_tracker = ParticleFilter(number_of_particles=n_particles, 
                                    field=env.field,
-                                   process_noise=[1, 1, 0.1],
+                                   process_noise=[0.1, 0.1, 0.01],
                                    measurement_noise=[1, 1],
                                    vertical_lines_nr=vertical_lines_nr,
                                    using_real_field=env.using_vision_frames,
