@@ -22,7 +22,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
                          n_robots_yellow=n_robots_yellow, time_step=0.025)
 
         self.action_space = gym.spaces.Box(low=-1, high=1,  # hyp tg.
-                                           shape=(5, ), dtype=np.float32)
+                                           shape=(3, ), dtype=np.float32)
 
         n_obs = 6 + 4 + 7*self.n_robots_blue + 2*self.n_robots_yellow
         self.observation_space = gym.spaces.Box(low=-self.NORM_BOUNDS,
@@ -32,7 +32,8 @@ class SSLPathPlanningEnv(SSLBaseEnv):
 
         # Limit robot speeds
         self.max_v = 2.5
-        self.max_w = np.rad2deg(self.max_v / 0.095)
+        self.max_w = 10
+        self.max_w_deg = np.rad2deg(self.max_w)
 
         self.target_point: Point2D = Point2D(0, 0)
         self.target_angle: float = 0.0
@@ -130,15 +131,14 @@ class SSLPathPlanningEnv(SSLBaseEnv):
     def _get_commands(self, action):
         target_v_x = action[0] * self.max_v
         target_v_y = action[1] * self.max_v
-        target_k_p = max(0, action[4] * 15)
-        target_angle = target_k_p * np.arctan2(action[2], action[3])
+        target_v_w = action[2] * self.max_w
 
         move = RobotMove(
             velocity=Point2D(target_v_x, target_v_y),
-            angular_velocity=target_angle
+            angular_velocity=target_v_w
         )
 
-        v_x, v_y, v_theta = self.convert_actions(move, target_angle)
+        v_x, v_y, v_theta = self.convert_actions(move, np.deg2rad(self.frame.robots_blue[0].theta))
 
         return [
             Robot(
@@ -152,53 +152,6 @@ class SSLPathPlanningEnv(SSLBaseEnv):
 
     def is_v_in_range(self, current, target) -> bool:
         return abs(current - target) <= SPEED_TOLERANCE
-
-    def old_reward_function(self, robot_pos: Point2D, last_robot_pos: Point2D, robot_vel: Point2D, last_robot_vel: Point2D, robot_angle: float, target_pos: Point2D, target_angle: float, target_vel: Point2D):
-        max_dist = np.sqrt(self.field.length ** 2 + self.field.width ** 2)
-
-        last_dist_robot_to_target = dist_to(target_pos, last_robot_pos)
-        dist_robot_to_target = dist_to(target_pos, robot_pos)
-
-        last_robot_angle = np.deg2rad(self.last_frame.robots_blue[0].theta)
-        last_angle_error = abs_smallest_angle_diff(last_robot_angle, target_angle)
-        angle_error = abs_smallest_angle_diff(robot_angle, target_angle)
-
-        last_robot_velocity_to_target = dist_to(target_vel, last_robot_vel)
-        robot_velocity_to_target = dist_to(target_vel, robot_vel)
-
-        angle_reward = 0.125 * (last_angle_error - angle_error) / np.pi
-        dist_reward = 0.75 * (last_dist_robot_to_target - dist_robot_to_target) / max_dist
-        velocity_reward = 0.125 * (last_robot_velocity_to_target - robot_velocity_to_target) / self.max_v
-        
-        angular_velocity = self.frame.robots_blue[0].v_theta
-        angular_velocity_to_target = abs(angular_velocity)
-
-        self.reward_info['dist_error'] = dist_robot_to_target
-        self.reward_info['angle_error'] = angle_error
-        self.reward_info['velocity_error'] = robot_velocity_to_target
-        self.reward_info['angular_velocity'] = angular_velocity_to_target / self.max_w
-        self.reward_info['distance/step'] = (self.initial_dist - dist_robot_to_target) / self.steps
-
-        self.reward_info['current_speed'] = length(robot_vel)
-        self.reward_info['current_velocity_x'] = robot_vel.x
-        self.reward_info['current_velocity_y'] = robot_vel.y
-
-        self.reward_info['total_reward'] += dist_reward
-        self.reward_info['cumulative_dist_reward'] += dist_reward
-
-        self.reward_info['total_reward'] += angle_reward
-        self.reward_info['cumulative_angle_reward'] += angle_reward
-
-        if dist_robot_to_target <= DIST_TOLERANCE:
-            self.reward_info['total_reward'] += velocity_reward
-            self.reward_info['cumulative_velocity_reward'] += velocity_reward
-
-            if robot_velocity_to_target <= SPEED_TOLERANCE and angular_velocity_to_target <= ANGULAR_SPEED_TOLERANCE:
-                return angle_reward, angle_error <= ANGLE_TOLERANCE
-
-            return angle_reward + velocity_reward, False
-
-        return dist_reward + angle_reward, False
 
     def reward_function(self, robot_pos: Point2D, last_robot_pos: Point2D, robot_vel: Point2D, last_robot_vel: Point2D, robot_angle: float, target_pos: Point2D, target_angle: float, target_vel: Point2D):
         max_dist = np.sqrt(self.field.length ** 2 + self.field.width ** 2)
@@ -223,13 +176,60 @@ class SSLPathPlanningEnv(SSLBaseEnv):
         self.reward_info['dist_error'] = dist_robot_to_target
         self.reward_info['angle_error'] = angle_error
         self.reward_info['velocity_error'] = robot_velocity_to_target
-        self.reward_info['angular_velocity'] = angular_velocity_to_target / self.max_w
+        self.reward_info['angular_velocity'] = angular_velocity_to_target / self.max_w_deg
+        self.reward_info['distance/step'] = (self.initial_dist - dist_robot_to_target) / self.steps
+
+        self.reward_info['current_speed'] = length(robot_vel)
+        self.reward_info['current_velocity_x'] = robot_vel.x
+        self.reward_info['current_velocity_y'] = robot_vel.y
+
+        self.reward_info['total_reward'] += dist_reward
+        self.reward_info['cumulative_dist_reward'] += dist_reward
+
+        self.reward_info['total_reward'] += angle_reward
+        self.reward_info['cumulative_angle_reward'] += angle_reward
+
+        if dist_robot_to_target <= DIST_TOLERANCE:
+            self.reward_info['total_reward'] += velocity_reward
+            self.reward_info['cumulative_velocity_reward'] += velocity_reward
+
+            if robot_velocity_to_target <= SPEED_TOLERANCE and angular_velocity_to_target <= ANGULAR_SPEED_TOLERANCE:
+                return angle_reward + 3, angle_error <= ANGLE_TOLERANCE
+
+            return angle_reward + velocity_reward, False
+
+        return dist_reward + angle_reward, False
+
+    def test_reward_function(self, robot_pos: Point2D, last_robot_pos: Point2D, robot_vel: Point2D, last_robot_vel: Point2D, robot_angle: float, target_pos: Point2D, target_angle: float, target_vel: Point2D):
+        max_dist = np.sqrt(self.field.length ** 2 + self.field.width ** 2)
+
+        last_dist_robot_to_target = dist_to(target_pos, last_robot_pos)
+        dist_robot_to_target = dist_to(target_pos, robot_pos)
+
+        last_robot_angle = np.deg2rad(self.last_frame.robots_blue[0].theta)
+        last_angle_error = abs_smallest_angle_diff(last_robot_angle, target_angle)
+        angle_error = abs_smallest_angle_diff(robot_angle, target_angle)
+
+        last_robot_velocity_to_target = dist_to(target_vel, last_robot_vel)
+        robot_velocity_to_target = dist_to(target_vel, robot_vel)
+
+        angle_reward = 0.125 * (last_angle_error - angle_error) / np.pi
+        dist_reward = 0.75 * (last_dist_robot_to_target - dist_robot_to_target) / max_dist
+        velocity_reward = 0.125 * (last_robot_velocity_to_target - robot_velocity_to_target) / self.max_v
+        
+        angular_velocity = self.frame.robots_blue[0].v_theta
+        angular_velocity_to_target = abs(angular_velocity)
+
+        self.reward_info['dist_error'] = dist_robot_to_target
+        self.reward_info['angle_error'] = angle_error
+        self.reward_info['velocity_error'] = robot_velocity_to_target
+        self.reward_info['angular_velocity'] = angular_velocity_to_target / self.max_w_deg
         self.reward_info['distance/step'] = (self.initial_dist - dist_robot_to_target) / self.steps
 
         total_reward = 0
 
         if dist_robot_to_target <= DIST_TOLERANCE and robot_velocity_to_target <= SPEED_TOLERANCE:
-            total_reward = 5 - angle_error - angular_velocity_to_target / self.max_w
+            total_reward = 5 - angle_error - angular_velocity_to_target / self.max_w_deg
             self.reward_info['total_reward'] += total_reward
             return total_reward, True
         else:
