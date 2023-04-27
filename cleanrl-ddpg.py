@@ -209,10 +209,10 @@ if __name__ == "__main__":
                 writer.add_scalar('charts/episodic_velocity_reward', info['cumulative_velocity_reward'], global_step)
                 writer.add_scalar('error/dist_error', info['dist_error'], global_step)
                 writer.add_scalar('error/distance_step', info['distance/step'], global_step)
-                # if not info.get("TimeLimit.truncated", False):
-                writer.add_scalar('error/angle_error', info['angle_error'], global_step)
-                writer.add_scalar('error/angular_velocity', info['angular_velocity'], global_step)
-                writer.add_scalar('error/velocity_error', info['velocity_error'], global_step)
+                if not info.get("TimeLimit.truncated", False):
+                    writer.add_scalar('error/angle_error', info['angle_error'], global_step)
+                    writer.add_scalar('error/angular_velocity', info['angular_velocity'], global_step)
+                    writer.add_scalar('error/velocity_error', info['velocity_error'], global_step)
                 break
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `terminal_observation`
