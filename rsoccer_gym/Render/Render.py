@@ -3,7 +3,7 @@ import os
 
 import numpy as np
 from rsoccer_gym.Entities import Frame, Field
-from gym.envs.classic_control import rendering
+from rsoccer_gym.Render import rendering
 from typing import Dict, List, Tuple
 
 # COLORS RGB

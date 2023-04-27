@@ -245,7 +245,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
 
         pos_frame: Frame = Frame()
 
-        pos_frame.ball = Ball(x=get_random_x(), y=get_random_y())
+        pos_frame.ball = Ball(x=0, y=20)
 
         self.target_point = Point2D(x=get_random_x(), y=get_random_y())
         self.target_angle = np.deg2rad(get_random_theta())
@@ -281,7 +281,7 @@ class SSLPathPlanningEnv(SSLBaseEnv):
             vel = (speed * np.cos(vel_angle), speed * np.sin(vel_angle))
 
             pos_frame.robots_blue[i] = Robot(id=i, yellow=False,
-                                             x=pos[0], y=pos[1], v_x=vel[0], v_y=vel[1], v_theta=get_random_w(), theta=get_random_theta())
+                                             x=pos[0], y=pos[1], theta=get_random_theta())
 
         for i in range(self.n_robots_yellow):
             pos = (get_random_x(), get_random_y())
@@ -293,3 +293,29 @@ class SSLPathPlanningEnv(SSLBaseEnv):
                                                x=pos[0], y=pos[1], theta=get_random_theta())
 
         return pos_frame
+
+    def render(self, mode = 'human') -> None:
+        '''
+        Renders the game depending on 
+        ball's and players' positions.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        '''
+        if self.view == None:
+            self.view = RCGymRender(self.n_robots_blue,
+                                    self.n_robots_yellow,
+                                    self.field,
+                                    simulator='ssl',
+                                    angle_tolerance=ANGLE_TOLERANCE)
+
+        self.view.set_target(self.target_point.x, self.target_point.y)
+        self.view.set_target_angle(np.rad2deg(self.target_angle))
+
+        return self.view.render_frame(self.frame, return_rgb_array=mode == "rgb_array")
