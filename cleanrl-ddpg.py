@@ -67,7 +67,7 @@ def parse_args():
 def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
         env = gym.make(env_id)
-        env = gym.wrappers.FrameStack(env, 3)
+        # env = gym.wrappers.FrameStack(env, 3)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         if capture_video:
             if idx == 0:
@@ -205,6 +205,15 @@ if __name__ == "__main__":
                 print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
                 writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
                 writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
+                writer.add_scalar('charts/episodic_dist_reward', info['cumulative_dist_reward'], global_step)
+                writer.add_scalar('charts/episodic_angle_reward', info['cumulative_angle_reward'], global_step)
+                writer.add_scalar('charts/episodic_velocity_reward', info['cumulative_velocity_reward'], global_step)
+                writer.add_scalar('error/dist_error', info['dist_error'], global_step)
+                writer.add_scalar('error/distance_step', info['distance/step'], global_step)
+                if info.get("TimeLimit.truncated", False):
+                    writer.add_scalar('error/angle_error', info['angle_error'], global_step)
+                    writer.add_scalar('error/angular_velocity', info['angular_velocity'], global_step)
+                    writer.add_scalar('error/velocity_error', info['velocity_error'], global_step)
                 break
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `terminal_observation`

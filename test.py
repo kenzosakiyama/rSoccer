@@ -3,8 +3,8 @@ import rsoccer_gym
 import numpy as np
 
 # Using VSS Single Agent env
-# env = gym.make('SSLPathPlanning-v0')
-env = gym.vector.make('SSLPathPlanning-v0', 2)
+env = gym.make('SSLPathPlanning-v0')
+# env = gym.vector.make('SSLPathPlanning-v0', 2)
 import pdb; pdb.set_trace()
 env.reset()
 # Run for 1 episode and print reward at the end
