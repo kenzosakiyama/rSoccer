@@ -131,8 +131,8 @@ class Actor(nn.Module):
 if __name__ == "__main__":
     args = parse_args()
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
-    if args.capture_video:
-        pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
+    # if args.capture_video:
+        # pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
     if args.track:
         import wandb
 
@@ -164,7 +164,7 @@ if __name__ == "__main__":
     n_envs = args.n_envs
     # envs = gym.vector.make('SSLPathPlanning-v0', n_envs, wrappers=[gym.wrappers.RecordEpisodeStatistics])
     from worker import custom_worker_shared_memory
-    video_env = make_env(args.env_id, args.seed, 0, args.capture_video, run_name)()
+    video_env = make_env(args.env_id, args.seed, 0, args.capture_video, run_name, num_robots)()
     envs = gym.vector.AsyncVectorEnv([make_env(args.env_id, args.seed, idx, False, run_name, num_robots) for idx in range(n_envs)], worker=custom_worker_shared_memory)
     
     # assert isinstance(envs.single_action_space, gym.spaces.box.Box), "only continuous action space is supported"
@@ -198,8 +198,8 @@ if __name__ == "__main__":
     for global_step in range(0, args.total_timesteps, envs.num_envs * num_robots):
         if args.capture_video and global_step % (envs.num_envs * num_robots * 10000) == 0:
             v_obs = video_env.reset()
-            v_done = False
-            while not v_done:
+            v_done = [False]
+            while not v_done[0]:
                 with torch.no_grad():
                     actions = actor(torch.Tensor(v_obs).to(device))
                     actions = actions.cpu().numpy().clip(video_env.action_space.low, video_env.action_space.high)
