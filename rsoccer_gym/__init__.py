@@ -75,3 +75,7 @@ register(id='SSLPathPlanning-v0',
          kwargs={'field_type': 2, 'n_robots_yellow': 0},
          max_episode_steps=1200
          )
+register(id='SSLPathPlanningObstacles-v0',
+         entry_point='rsoccer_gym.ssl.ssl_path_planning:SSLPathPlanningObstaclesEnv',
+         kwargs={'field_type': 2, 'n_robots': 6}
+         )

@@ -127,7 +127,8 @@ class Actor(nn.Module):
 if __name__ == "__main__":
     args = parse_args()
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
-    pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
+    if args.capture_video:
+        pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
     if args.track:
         import wandb
 

@@ -25,6 +25,19 @@ GRAY = (128 / 255, 128 / 255, 128 / 255)
 LIGHT_GRAY = (192 / 255, 192 / 255, 192 / 255)
 YELLOW = (255 / 255, 255 / 255, 0 / 255)
 
+TARGET_COLORS = [
+    TARGET_RED,
+    TARGET_BLUE,
+    BALL_ORANGE,
+    TARGET_GREEN,
+    TAG_PURPLE,
+    TAG_PINK,
+    YELLOW,
+    LIGHT_GRAY,
+    ROBOT_BLACK,
+    GRAY
+]
+
 
 class RCGymRender:
     '''
@@ -72,7 +85,7 @@ class RCGymRender:
         self.target_angle_direction: rendering.Transform = None
         self.target_angle = None
         self.target_tolerance = angle_tolerance
-        self.polyline = []
+        self.polylines = {}
         self.commands = []
 
         # Window dimensions in pixels
@@ -120,9 +133,6 @@ class RCGymRender:
         # add ball
         self._add_ball()
 
-        # add target
-        self._add_target()
-
     def __del__(self):
         self.screen.close()
         del (self.screen)
@@ -138,7 +148,7 @@ class RCGymRender:
     def set_target_angle(self, theta: float) -> None:
         self.target_angle = theta
 
-    def render_frame(self, frame: Frame, return_rgb_array: bool = False) -> None:
+    def render_frame(self, frame: Frame, return_rgb_array: bool = False, target_points = None, target_angles = None) -> None:
         '''
         Draws the field, ball and players.
 
@@ -154,19 +164,22 @@ class RCGymRender:
 
         self.ball.set_translation(frame.ball.x, frame.ball.y)
 
-        if self.target_position_x is not None and self.target_position_y is not None and self.target_angle is not None:
-            self.target.set_translation(
-                self.target_position_x, self.target_position_y)
-            self.target_angle_direction.set_translation(
-                self.target_position_x, self.target_position_y)
-            self.target_angle_direction.set_rotation(np.deg2rad(self.target_angle))
+        self._add_targets(target_points, target_angles)
+        # if self.target_position_x is not None and self.target_position_y is not None and self.target_angle is not None:
+        #     self.target.set_translation(
+        #         self.target_position_x, self.target_position_y)
+        #     self.target_angle_direction.set_translation(
+        #         self.target_position_x, self.target_position_y)
+        #     self.target_angle_direction.set_rotation(np.deg2rad(self.target_angle))
 
         for i, blue in enumerate(frame.robots_blue.values()):
             self.blue_robots[i].set_translation(blue.x, blue.y)
             self.blue_robots[i].set_rotation(np.deg2rad(blue.theta))
 
-            if i == 0:
-                self.polyline.append((blue.x, blue.y, np.deg2rad(blue.theta)))
+            if not i in self.polylines:
+                self.polylines[i] = []
+
+            self.polylines[i].append((blue.x, blue.y, np.deg2rad(blue.theta)))
 
         for i, yellow in enumerate(frame.robots_yellow.values()):
             self.yellow_robots[i].set_translation(yellow.x, yellow.y)
@@ -181,10 +194,11 @@ class RCGymRender:
         #     rendering_direction.set_linewidth(2)
         #     self.screen.add_onetime(rendering_direction)
         
-        rendering_polyline: rendering.Geom = rendering.make_polyline([(x, y) for x, y, theta in self.polyline])
-        rendering_polyline.set_color(*TARGET_RED)
-        rendering_polyline.set_linewidth(2)
-        self.screen.add_onetime(rendering_polyline)
+        for i, polyline in self.polylines.items():
+            rendering_polyline: rendering.Geom = rendering.make_polyline([(x, y) for x, y, theta in polyline])
+            rendering_polyline.set_color(*TARGET_COLORS[i])
+            rendering_polyline.set_linewidth(2)
+            self.screen.add_onetime(rendering_polyline)
 
         rendering_commands: rendering.Geom = rendering.make_polyline([(x, y) for x, y, theta in self.commands])
         rendering_commands.set_color(*TARGET_GREEN)
@@ -624,35 +638,41 @@ class RCGymRender:
 
         self.ball = ball_transform
 
-    def _add_target(self):
-        target_radius: float = self.field.ball_radius
-        target_transform: rendering.Transform = rendering.Transform()
+    def _add_targets(self, targets, angles):
+        for idx in range(len(targets)):
+            target_radius: float = self.field.ball_radius
+            target_transform: rendering.Transform = rendering.Transform(
+                translation=(targets[idx][0], targets[idx][1])
+            )
 
-        target: rendering.Geom = rendering.make_circle(
-            target_radius, filled=True)
-        target.set_color(*TARGET_RED)
-        target.add_attr(target_transform)
+            target: rendering.Geom = rendering.make_circle(
+                target_radius, filled=True)
+            target.set_color(*TARGET_COLORS[idx])
+            target.add_attr(target_transform)
 
-        target_outline: rendering.Geom = rendering.make_circle(
-            target_radius*1.1, filled=False)
-        target_outline.linewidth.stroke = 1
-        target_outline.set_color(*BLACK)
-        target_outline.add_attr(target_transform)
+            target_outline: rendering.Geom = rendering.make_circle(
+                target_radius*1.1, filled=False)
+            target_outline.linewidth.stroke = 1
+            target_outline.set_color(*BLACK)
+            target_outline.add_attr(target_transform)
+            target
 
-        self.screen.add_geom(target)
-        self.screen.add_geom(target_outline)
+            self.screen.add_onetime(target)
+            self.screen.add_onetime(target_outline)
 
-        self.target = target_transform
 
-        robot_radius: float = self.field.rbt_radius
-        target_angle_transform: rendering.Transform = rendering.Transform()
+            robot_radius: float = self.field.rbt_radius
+            target_angle_transform: rendering.Transform = rendering.Transform(
+                translation=(targets[idx][0], targets[idx][1]),
+                rotation=angles[idx]
+            )
 
-        target_angle: rendering.Geom = rendering.make_polyline(
-            [(0, 0), (robot_radius, 0)])
-        target_angle.set_color(*GRAY)
-        target_angle.add_attr(target_angle_transform)
-        target_angle.set_linewidth(2)
+            target_angle: rendering.Geom = rendering.make_polyline(
+                [(0, 0), (robot_radius, 0)])
+            target_angle.set_color(*GRAY)
+            target_angle.add_attr(target_angle_transform)
+            target_angle.set_linewidth(2)
 
-        self.screen.add_geom(target_angle)
+            self.screen.add_onetime(target_angle)
 
-        self.target_angle_direction = target_angle_transform
+            self.target_angle_direction = target_angle_transform
