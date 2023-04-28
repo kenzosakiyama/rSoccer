@@ -8,6 +8,7 @@ import numpy as np
 from rsoccer_gym.Entities import Ball, Frame, Robot
 from rsoccer_gym.ssl.ssl_gym_base import SSLBaseEnv
 from rsoccer_gym.Utils import KDTree
+from collections import deque
 
 ANGLE_TOLERANCE: float = np.deg2rad(7.5) # 7.5 degrees
 SPEED_TOLERANCE: float = 0.20 # m/s == 20 cm/s
@@ -27,7 +28,9 @@ class SSLPathPlanningObstaclesEnv(SSLBaseEnv):
         self.action_space = gym.spaces.Box(low=-1, high=1,  # hyp tg.
                                            shape=(n_robots, 3), dtype=np.float32)
 
-        n_obs = 6 + 4 + 7 + 2*(n_robots - 1)
+        n_frames = 3
+
+        n_obs = 6 + 4 + (7 + 2*(n_robots - 1)) * n_frames
         self.observation_space = gym.spaces.Box(low=-self.NORM_BOUNDS,
                                                 high=self.NORM_BOUNDS,
                                                 shape=(n_robots, n_obs),
@@ -59,6 +62,7 @@ class SSLPathPlanningObstaclesEnv(SSLBaseEnv):
         
         print('Environment initialized')
         self.previous_dones = []
+        self.frames = deque(maxlen=n_frames)
     
     def reset(self):
         self.reward_info = [{
@@ -75,6 +79,7 @@ class SSLPathPlanningObstaclesEnv(SSLBaseEnv):
             'current_velocity_x': 0,
             'current_velocity_y': 0,
         }] * self.n_robots
+        self.frames.clear()
         return super().reset()
     
     def step(self, action):
@@ -84,6 +89,9 @@ class SSLPathPlanningObstaclesEnv(SSLBaseEnv):
         return observation, reward, done, self.reward_info
 
     def _frame_to_observations(self):
+        while len(self.frames) < self.frames.maxlen:
+            self.frames.append(self.frame)
+        self.frames.append(self.frame)
         observations = list()
 
         for i in range(self.n_robots):
@@ -100,19 +108,21 @@ class SSLPathPlanningObstaclesEnv(SSLBaseEnv):
             _obs.append(self.norm_v(self.frame.ball.v_x))
             _obs.append(self.norm_v(self.frame.ball.v_y))
 
-            _obs.append(self.norm_pos(self.frame.robots_blue[i].x))
-            _obs.append(self.norm_pos(self.frame.robots_blue[i].y))
-            _obs.append(np.sin(np.deg2rad(self.frame.robots_blue[i].theta)))
-            _obs.append(np.cos(np.deg2rad(self.frame.robots_blue[i].theta)))
-            _obs.append(self.norm_v(self.frame.robots_blue[i].v_x))
-            _obs.append(self.norm_v(self.frame.robots_blue[i].v_y))
-            _obs.append(self.norm_w(self.frame.robots_blue[i].v_theta))
+            for j in range(self.frames.maxlen):
+                _obs.append(self.norm_pos(self.frames[j].robots_blue[i].x))
+                _obs.append(self.norm_pos(self.frames[j].robots_blue[i].y))
+                _obs.append(np.sin(np.deg2rad(self.frames[j].robots_blue[i].theta)))
+                _obs.append(np.cos(np.deg2rad(self.frames[j].robots_blue[i].theta)))
+                _obs.append(self.norm_v(self.frames[j].robots_blue[i].v_x))
+                _obs.append(self.norm_v(self.frames[j].robots_blue[i].v_y))
+                _obs.append(self.norm_w(self.frames[j].robots_blue[i].v_theta))
 
             for j in range(self.n_robots):
                 if i == j:
                     continue
-                _obs.append(self.norm_pos(self.frame.robots_blue[j].x))
-                _obs.append(self.norm_pos(self.frame.robots_blue[j].y))
+                for k in range(self.frames.maxlen):
+                    _obs.append(self.norm_pos(self.frames[k].robots_blue[j].x))
+                    _obs.append(self.norm_pos(self.frames[k].robots_blue[j].y))
             
             observations.append(_obs)
 
