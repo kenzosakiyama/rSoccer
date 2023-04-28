@@ -58,6 +58,7 @@ class SSLPathPlanningObstaclesEnv(SSLBaseEnv):
         }] * n_robots
         
         print('Environment initialized')
+        self.previous_dones = []
     
     def reset(self):
         self.reward_info = [{
@@ -207,6 +208,22 @@ class SSLPathPlanningObstaclesEnv(SSLBaseEnv):
 
     def _calculate_reward_and_done(self):
         rewards, dones = [], []
+        for i in self.previous_dones:
+            self.reward_info[i] = {
+                'cumulative_dist_reward': 0,
+                'cumulative_angle_reward': 0,
+                'cumulative_velocity_reward': 0,
+                'total_reward': 0,
+
+                'dist_error': 0,
+                'angle_error': 0,
+                'velocity_error': 0,
+
+                'current_speed': 0,
+                'current_velocity_x': 0,
+                'current_velocity_y': 0,
+            }
+        self.previous_dones = []
         for i in range(self.n_robots):
             robot = self.frame.robots_blue[i]
             last_robot = self.last_frame.robots_blue[i]
@@ -218,8 +235,17 @@ class SSLPathPlanningObstaclesEnv(SSLBaseEnv):
             if self.steps >= self.max_episode_steps:
                 self.reward_info[i]["TimeLimit.truncated"] = not _done
                 _done = True
+            else:
+                if _done:
+                    self.target_point[i] = Point2D(
+                            random.uniform(-(self.field.length / 2) + 0.1,(self.field.length / 2) - 0.1),
+                            random.uniform(-(self.field.width / 2) + 0.1,(self.field.width / 2) - 0.1)
+                        )
+                    self.target_angle[i] = np.deg2rad(random.uniform(0, 360))
+                    self.previous_dones.append(i)
             if _done:
                 self.reward_info[i]["terminal_observation"] = self.last_observations[i].copy()
+
             rewards.append(_rew)
             dones.append(_done)
         return rewards, dones

@@ -196,7 +196,7 @@ class RCGymRender:
         
         for i, polyline in self.polylines.items():
             rendering_polyline: rendering.Geom = rendering.make_polyline([(x, y) for x, y, theta in polyline])
-            rendering_polyline.set_color(*TARGET_COLORS[i])
+            rendering_polyline.set_color(*TARGET_COLORS[i % len(TARGET_COLORS)])
             rendering_polyline.set_linewidth(2)
             self.screen.add_onetime(rendering_polyline)
 
@@ -647,7 +647,7 @@ class RCGymRender:
 
             target: rendering.Geom = rendering.make_circle(
                 target_radius, filled=True)
-            target.set_color(*TARGET_COLORS[idx])
+            target.set_color(*TARGET_COLORS[idx % len(TARGET_COLORS)])
             target.add_attr(target_transform)
 
             target_outline: rendering.Geom = rendering.make_circle(

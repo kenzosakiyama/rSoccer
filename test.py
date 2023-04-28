@@ -11,10 +11,12 @@ env.reset()
 # Run for 1 episode and print reward at the end
 for i in range(1):
     done = False
-    while not np.any(done):
+    while True:
         # Step using random actions
         action = env.action_space.sample()
         next_state, reward, done, info = env.step(action)
         env.render()
+        if np.all(done):
+            env.reset()
     print(info[0])
     print(reward)
