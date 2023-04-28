@@ -196,7 +196,8 @@ if __name__ == "__main__":
     obs = envs.reset()
     obs = obs.reshape(-1, n_obs)
     for global_step in range(0, args.total_timesteps, envs.num_envs * num_robots):
-        if args.capture_video and global_step % (envs.num_envs * num_robots * 10000) == 0:
+        if args.capture_video and global_step % (envs.num_envs * num_robots * 25000) == 0:
+            torch.save(actor.state_dict(), f"runs/{run_name}/model.pt")
             v_obs = video_env.reset()
             v_done = [False]
             while not v_done[0]:
