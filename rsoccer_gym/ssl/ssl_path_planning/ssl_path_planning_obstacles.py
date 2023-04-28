@@ -80,6 +80,7 @@ class SSLPathPlanningObstaclesEnv(SSLBaseEnv):
     def step(self, action):
         observation, reward, done, _ = super().step(action)
         self.last_observations = observation
+        # return observation, reward, done, {}
         return observation, reward, done, self.reward_info
 
     def _frame_to_observations(self):
@@ -109,9 +110,9 @@ class SSLPathPlanningObstaclesEnv(SSLBaseEnv):
 
             for j in range(self.n_robots):
                 if i == j:
-                    pass
-                _obs.append(self.norm_pos(self.frame.robots_blue[i].x))
-                _obs.append(self.norm_pos(self.frame.robots_blue[i].y))
+                    continue
+                _obs.append(self.norm_pos(self.frame.robots_blue[j].x))
+                _obs.append(self.norm_pos(self.frame.robots_blue[j].y))
             
             observations.append(_obs)
 

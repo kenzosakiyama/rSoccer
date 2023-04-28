@@ -8,6 +8,7 @@ env = gym.wrappers.RecordEpisodeStatistics(env)
 # env = gym.vector.make('SSLPathPlanning-v0', 2)
 # import pdb; pdb.set_trace()
 env.reset()
+import pdb; pdb.set_trace()
 # Run for 1 episode and print reward at the end
 for i in range(1):
     done = False

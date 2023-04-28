@@ -23,6 +23,10 @@ def parse_args():
         help="the name of this experiment")
     parser.add_argument("--seed", type=int, default=1,
         help="seed of the experiment")
+    parser.add_argument("--n-robots", type=int, default=1,
+        help="number of robots")
+    parser.add_argument("--n-envs", type=int, default=1,
+        help="number of environments")
     parser.add_argument("--torch-deterministic", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
         help="if toggled, `torch.backends.cudnn.deterministic=False`")
     parser.add_argument("--cuda", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
@@ -37,7 +41,7 @@ def parse_args():
         help="whether to capture videos of the agent performances (check out `videos` folder)")
 
     # Algorithm specific arguments
-    parser.add_argument("--env-id", type=str, default='SSLPathPlanning-v0',
+    parser.add_argument("--env-id", type=str, default='SSLPathPlanningObstacles-v0',
         help="the id of the environment")
     parser.add_argument("--total-timesteps", type=int, default=50000000,
         help="total timesteps of the experiments")
@@ -64,13 +68,13 @@ def parse_args():
     return args
 
 
-def make_env(env_id, seed, idx, capture_video, run_name):
+def make_env(env_id, seed, idx, capture_video, run_name, num_robots):
     def thunk():
-        env = gym.make(env_id)
+        env = gym.make(env_id, n_robots=num_robots)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         if capture_video:
             if idx == 0:
-                env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
+                env = gym.wrappers.RecordVideo(env, f"videos/{run_name}", step_trigger=lambda x: True)
         # env.seed(seed)
         # env.action_space.seed(seed)
         # env.observation_space.seed(seed)
@@ -155,16 +159,17 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
-
-    # gym.wrappers.RecordVideo(env, f"videos/{run_name}") , partial(gym.wrappers.RecordVideo, video_folder=f"videos/{run_name}")
-    from functools import partial
     # env setup 
-    n_envs = 10
+    num_robots = args.n_robots
+    n_envs = args.n_envs
     # envs = gym.vector.make('SSLPathPlanning-v0', n_envs, wrappers=[gym.wrappers.RecordEpisodeStatistics])
-    envs = gym.vector.AsyncVectorEnv([make_env(args.env_id, args.seed, idx, args.capture_video, run_name) for idx in range(n_envs)])
-    # envs = gym.vector.SyncVectorEnv([make_env(args.env_id, args.seed, 0, args.capture_video, run_name)])
-    assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
-
+    from worker import custom_worker_shared_memory
+    video_env = make_env(args.env_id, args.seed, 0, args.capture_video, run_name)()
+    envs = gym.vector.AsyncVectorEnv([make_env(args.env_id, args.seed, idx, False, run_name, num_robots) for idx in range(n_envs)], worker=custom_worker_shared_memory)
+    
+    # assert isinstance(envs.single_action_space, gym.spaces.box.Box), "only continuous action space is supported"
+    envs.single_action_space = gym.spaces.Box(low=envs.single_action_space.low[0], high=envs.single_action_space.high[0])
+    envs.single_observation_space = gym.spaces.Box(low=envs.single_observation_space.low[0], high=envs.single_observation_space.high[0])
     actor = Actor(envs).to(device)
     qf1 = QNetwork(envs).to(device)
     qf1_target = QNetwork(envs).to(device)
@@ -180,26 +185,45 @@ if __name__ == "__main__":
         envs.single_observation_space,
         envs.single_action_space,
         device,
-        n_envs=envs.num_envs,
+        n_envs=n_envs * num_robots,
         handle_timeout_termination=True,
     )
     start_time = time.time()
+    n_obs = envs.single_observation_space.shape[-1]
+    n_actions = envs.action_space.shape[-1]
 
     # TRY NOT TO MODIFY: start the game
     obs = envs.reset()
-    for global_step in range(0, args.total_timesteps, envs.num_envs):
+    obs = obs.reshape(-1, n_obs)
+    for global_step in range(0, args.total_timesteps, envs.num_envs * num_robots):
+        if args.capture_video and global_step % (envs.num_envs * num_robots * 10000) == 0:
+            v_obs = video_env.reset()
+            v_done = False
+            while not v_done:
+                with torch.no_grad():
+                    actions = actor(torch.Tensor(v_obs).to(device))
+                    actions = actions.cpu().numpy().clip(video_env.action_space.low, video_env.action_space.high)
+                v_obs, _, v_done, _ = video_env.step(actions)
+
         # ALGO LOGIC: put action logic here
         if global_step < args.learning_starts:
-            actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
+            # actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
+            actions = envs.action_space.sample()
         else:
             with torch.no_grad():
                 actions = actor(torch.Tensor(obs).to(device))
                 actions += torch.normal(0, actor.action_scale * args.exploration_noise)
-                actions = actions.cpu().numpy().clip(envs.single_action_space.low, envs.single_action_space.high)
+                actions = actions.cpu().numpy().clip(envs.single_action_space.low, envs.single_action_space.high).reshape(n_envs, num_robots, -1)
 
         # TRY NOT TO MODIFY: execute the game and log data.
-        next_obs, rewards, dones, infos = envs.step(actions)
-
+        next_obs, rewards, dones, _infos = envs.step(actions)
+        next_obs = next_obs.reshape(-1, n_obs)
+        rewards = rewards.reshape(-1)
+        dones = dones.reshape(-1)
+        infos = ()
+        for _i in _infos:
+            infos += _i
+        
         # TRY NOT TO MODIFY: record rewards for plotting purposes
         for info in infos:
             if "episode" in info.keys():
@@ -210,7 +234,6 @@ if __name__ == "__main__":
                 writer.add_scalar('charts/episodic_angle_reward', info['cumulative_angle_reward'], global_step)
                 writer.add_scalar('charts/episodic_velocity_reward', info['cumulative_velocity_reward'], global_step)
                 writer.add_scalar('error/dist_error', info['dist_error'], global_step)
-                writer.add_scalar('error/distance_step', info['distance/step'], global_step)
                 if not info.get("TimeLimit.truncated", False):
                     writer.add_scalar('error/angle_error', info['angle_error'], global_step)
                     writer.add_scalar('error/angular_velocity', info['angular_velocity'], global_step)
