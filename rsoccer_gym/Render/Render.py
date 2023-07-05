@@ -255,9 +255,11 @@ class RCGymRender:
 
     def _add_vss_robots(self) -> None:
         tag_id_colors: Dict[int, Tuple[float, float, float]] = {
-            0 : TAG_GREEN,
-            1 : TAG_PURPLE,
-            2 : TAG_RED
+            0 : TAG_RED,
+            1 : TAG_GREEN,
+            2 : TAG_PURPLE,
+            3: BALL_ORANGE,
+            4: TAG_PINK,
         }
         
         # Add blue robots

@@ -4,7 +4,14 @@ register(id='VSS-v0',
          entry_point='rsoccer_gym.vss.env_vss:VSSEnv',
          max_episode_steps=1200
          )
-
+register(id='VSS5V5-v0',
+         entry_point='rsoccer_gym.vss.env_vss:VSS5v5Env',
+         max_episode_steps=1200
+        )
+register(id='VSSMA5V5-v0',
+         entry_point='rsoccer_gym.vss.env_ma:VSS5v5MAEnv',
+         max_episode_steps=1200
+        )
 register(id='VSSMA-v0',
          entry_point='rsoccer_gym.vss.env_ma:VSSMAEnv',
          max_episode_steps=1200
