@@ -147,15 +147,25 @@ class VSS5v5Env(VSSBaseEnv):
         return commands
 
     def _calculate_reward_and_done(self):
+
         reward = 0
         goal = False
+        # w_move = 0.3
+        # w_ball_grad = 0.7
+        # w_energy = 2e-4
+        # W_ball_goal_dist = 2e-2
+
+        # em andamento - 208 reward
         w_move = 0.2
         w_ball_grad = 0.8
         w_energy = 2e-4
+        W_ball_goal_dist = 1e-2
+
         if self.reward_shaping_total is None:
             self.reward_shaping_total = {'goal_score': 0, 'move': 0,
                                          'ball_grad': 0, 'energy': 0,
-                                         'goals_blue': 0, 'goals_yellow': 0}
+                                         'goals_blue': 0, 'goals_yellow': 0,
+                                         'ball_goal_dist': 0}
 
         # Check if goal ocurred
         if self.frame.ball.x > (self.field.length / 2):
@@ -177,16 +187,20 @@ class VSS5v5Env(VSSBaseEnv):
                 move_reward = self.__move_reward()
                 # Calculate Energy penalty
                 energy_penalty = self.__energy_penalty()
+                # Calculate Ball Goal Dist
+                dist = self.__ball_goal_dist()
 
                 reward = w_move * move_reward + \
                     w_ball_grad * grad_ball_potential + \
-                    w_energy * energy_penalty
+                    w_energy * energy_penalty + \
+                    W_ball_goal_dist * dist
 
                 self.reward_shaping_total['move'] += w_move * move_reward
                 self.reward_shaping_total['ball_grad'] += w_ball_grad \
                     * grad_ball_potential
                 self.reward_shaping_total['energy'] += w_energy \
                     * energy_penalty
+                self.reward_shaping_total['ball_goal_dist'] += W_ball_goal_dist * dist
 
         return reward, goal
 
@@ -255,32 +269,47 @@ class VSS5v5Env(VSSBaseEnv):
         '''Calculate ball potential gradient
         Difference of potential of the ball in time_step seconds.
         '''
-        # Calculate ball potential
-        length_cm = self.field.length * 100
-        half_lenght = (self.field.length / 2.0)\
-            + self.field.goal_depth
+        # # Calculate ball potential
+        # length_cm = self.field.length * 100
+        # half_lenght = (self.field.length / 2.0)\
+        #     + self.field.goal_depth
 
-        # distance to defence
-        dx_d = (half_lenght + self.frame.ball.x) * 100
-        # distance to attack
-        dx_a = (half_lenght - self.frame.ball.x) * 100
-        dy = (self.frame.ball.y) * 100
+        # # distance to defence
+        # dx_d = (half_lenght + self.frame.ball.x) * 100
+        # # distance to attack
+        # dx_a = (half_lenght - self.frame.ball.x) * 100
+        # dy = (self.frame.ball.y) * 100
 
-        dist_1 = -math.sqrt(dx_a ** 2 + 2 * dy ** 2)
-        dist_2 = math.sqrt(dx_d ** 2 + 2 * dy ** 2)
-        ball_potential = ((dist_1 + dist_2) / length_cm - 1) / 2
+        # dist_1 = -math.sqrt(dx_a ** 2 + 2 * dy ** 2)
+        # dist_2 = math.sqrt(dx_d ** 2 + 2 * dy ** 2)
+        # ball_potential = ((dist_1 + dist_2) / length_cm - 1) / 2
 
-        grad_ball_potential = 0
-        # Calculate ball potential gradient
-        # = actual_potential - previous_potential
-        if self.previous_ball_potential is not None:
-            diff = ball_potential - self.previous_ball_potential
-            grad_ball_potential = np.clip(diff * 3 / self.time_step,
-                                          -5.0, 5.0)
+        # grad_ball_potential = 0
+        # # Calculate ball potential gradient
+        # # = actual_potential - previous_potential
+        # if self.previous_ball_potential is not None:
+        #     diff = ball_potential - self.previous_ball_potential
+        #     grad_ball_potential = np.clip(diff * 3 / self.time_step,
+        #                                   -5.0, 5.0)
 
-        self.previous_ball_potential = ball_potential
+        # self.previous_ball_potential = ball_potential
 
-        return grad_ball_potential
+        # return grad_ball_potential
+
+        # Refactoring to -> moving towards enemy goal
+        ball = np.array([self.frame.ball.x, self.frame.ball.y])
+        goal = np.array([1.3, 0.0]) # ponto atras do gol - hardcoded
+
+        ball_vel = np.array([self.frame.ball.v_x, self.frame.ball.v_y])
+        # ball_vel = ball_vel / (np.linalg.norm(ball_vel) + 1e-5) # unit vec
+
+        ball_goal = goal - ball
+        ball_goal = ball_goal / np.linalg.norm(ball_goal) # unit vec
+
+        ball_grad = np.dot(ball_vel, ball_goal)
+        ball_grad = np.clip(2.5*ball_grad, -5.0, 5.0)
+
+        return ball_grad
 
     def __move_reward(self):
         '''Calculate Move to ball reward
@@ -294,18 +323,46 @@ class VSS5v5Env(VSSBaseEnv):
                           self.frame.robots_blue[0].y])
         robot_vel = np.array([self.frame.robots_blue[0].v_x,
                               self.frame.robots_blue[0].v_y])
+        
+        # Não normalizar a velocidade, pois nao estimula o robo a acelerar em direção ao gol
+        # robot_vel = robot_vel/(np.linalg.norm(robot_vel) + 1e-5)
+
         robot_ball = ball - robot
         robot_ball = robot_ball/np.linalg.norm(robot_ball)
 
         move_reward = np.dot(robot_ball, robot_vel)
 
-        move_reward = np.clip(move_reward / 0.4, -5.0, 5.0)
+        move_reward = np.clip(2.5 * move_reward, -5.0, 5.0)
+
+        # TODO: penalizar velocidade angular (determinar a vangular maxima e ver o quanto da maxima ele ta usando)
+
         return move_reward
 
     def __energy_penalty(self):
         '''Calculates the energy penalty'''
 
-        en_penalty_1 = abs(self.sent_commands[0].v_wheel0)
-        en_penalty_2 = abs(self.sent_commands[0].v_wheel1)
-        energy_penalty = - (en_penalty_1 + en_penalty_2)
+        wheel0 = self.sent_commands[0].v_wheel0
+        wheel1 = self.sent_commands[0].v_wheel1
+
+        # Se estiver dando spin, as rodas terão sinais opostos
+        # Dobrar a penalidade de energia caso o robo dê spin
+        multiplier = 2 if wheel0*wheel1 < 0 else 1
+        en_penalty_1 = abs(wheel0)
+        en_penalty_2 = abs(wheel1)
+
+        energy_penalty = -multiplier * (en_penalty_1 + en_penalty_2)
         return energy_penalty
+    
+    def __ball_goal_dist(self):
+
+        ball = np.array([self.frame.ball.x, self.frame.ball.y])
+        goal = np.array([1.1, 0.0]) # hardcoded
+
+        dist = np.linalg.norm(goal-ball)
+
+        # 2.2 - dist para transformar em uma recompensa +
+
+        return -dist
+
+
+
